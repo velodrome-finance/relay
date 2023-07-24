@@ -1,0 +1,32 @@
+{
+  "name": "autocompounder",
+  "version": "1.0.0",
+  "description": "Introduced in Velodrome V2 is a new type of veNFT called a \"managed NFT\" (also known as \"(m)veNFT\").  A (m)veNFT aggregates veNFT voting power into a single NFT, with rewards accrued by the NFT going to the owner of the (m)veNFT.  The (m)veNFT votes for pools in the same way a normal veNFT votes, with the exception that its' voting power is this aggregated voting power.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/velodrome-finance/AutoCompounder.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/velodrome-finance/AutoCompounder/issues"
+  },
+  "homepage": "https://github.com/velodrome-finance/AutoCompounder#readme",
+  "devDependencies": {
+    "prettier": "^2.8.8",
+    "prettier-plugin-solidity": "^1.1.3",
+    "solhint": "^3.4.1",
+    "solhint-plugin-prettier": "^0.0.5"
+  },
+  "scripts": {
+    "format": "prettier --write 'src/**/*.(sol|json)' 'test/**/*.(sol|json)' 'script/**/*.(sol|ts)'",
+    "format:check": "prettier --check 'src/**/*.*(sol|json)' 'test/**/*.(sol|json)' 'script/**/*.(sol|ts)'",
+    "lint": "solhint --fix 'src/**/*.sol' 'test/**/*.sol' 'script/**/*.sol'",
+    "lint:check": "solhint 'src/**/*.sol' 'test/**/*.sol' 'script/**/*.sol'"
+  }
+}
