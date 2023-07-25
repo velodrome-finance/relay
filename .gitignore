@@ -14,5 +14,5 @@ docs/
 .env
 
 artifacts/
-
+node_modules
 lcov.info
