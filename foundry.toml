@@ -10,3 +10,9 @@ remappings = [
 ]
 
 fs_permissions = [{ access = "read-write", path = "./"}]
+
+[rpc_endpoints]
+optimism = "${OPTIMISM_RPC_URL}"
+
+[etherscan]
+optimism = { key = "${OPTIMISM_SCAN_API_KEY}", url = "${OPTIMISM_ETHERSCAN_VERIFIER_URL}" }

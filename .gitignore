@@ -15,4 +15,6 @@ docs/
 
 artifacts/
 node_modules
+cache_hardhat
+deployments
 lcov.info

@@ -51,7 +51,7 @@ contract AutoCompounderFactory is IAutoCompounderFactory, ERC2771Context {
         optimizer = _optimizer;
 
         factoryRegistry = Ownable(_factoryRegistry);
-        ve = IVotingEscrow(IVoter(voter).ve());
+        ve = IVotingEscrow(IVoter(_voter).ve());
 
         uint256 length = highLiquidityTokens_.length;
         for (uint256 i = 0; i < length; i++) {

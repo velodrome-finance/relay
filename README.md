@@ -89,14 +89,17 @@ The first 24 hours after an epoch flip are given solely to the Admin in the case
 
 ### Current list of high liquidity tokens
 These tokens exist within Velodrome with at least $1M+ liquidity or $250k+ VELO liquidity in two or more pools:
-- [USDC](https://optimistic.etherscan.io/token/0x7f5c764cbc14f9669b88837ca1490cca17c31607)
-- [DOLA](https://optimistic.etherscan.io/token/0x8ae125e8653821e851f12a49f7765db9a9ce7384)
+- [USDC](https://optimistic.etherscan.io/token/0x7F5c764cBc14f9669B88837ca1490cCa17c31607)
+- [DOLA](https://optimistic.etherscan.io/token/0x8aE125E8653821E851F12A49F7765db9a9ce7384)
 - [WETH](https://optimistic.etherscan.io/token/0x4200000000000000000000000000000000000006)
-- [USD+](https://optimistic.etherscan.io/token/0x73cb180bf0521828d8849bc8cf2b920918e23032)
-- [OP](https://optimistic.etherscan.io/address/0x4200000000000000000000000000000000000042)
-- [MAI](https://optimistic.etherscan.io/token/0xdfa46478f9e5ea86d57387849598dbfb2e964b02?a=0x1ae4f1a178abfc6b7c90da19917676b82c698e4b)
-- [wstETH](https://optimistic.etherscan.io/address/0x1f32b1c2345538c0c6f582fcb022739c4a194ebb)
-- [DAI](https://optimistic.etherscan.io/token/0xda10009cbd5d07dd0cecc66161fc93d7c9000da1)
-- [LUSD](https://optimistic.etherscan.io/address/0xc40f949f8a4e094d1b49a23ea9241d289b7b2819)
-- [FRAX](https://optimistic.etherscan.io/token/0x2e3d870790dc77a83dd1d18184acc7439a53f475)
-- [frxETH](https://optimistic.etherscan.io/token/0x6806411765af15bddd26f8f544a34cc40cb9838b)
+- [USD+](https://optimistic.etherscan.io/token/0x73cb180bf0521828d8849bc8CF2B920918e23032)
+- [OP](https://optimistic.etherscan.io/token/0x4200000000000000000000000000000000000042)
+- [MAI](https://optimistic.etherscan.io/token/0xdFA46478F9e5EA86d57387849598dbFB2e964b02)
+- [wstETH](https://optimistic.etherscan.io/token/0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb)
+- [DAI](https://optimistic.etherscan.io/token/0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1)
+- [LUSD](https://optimistic.etherscan.io/token/0xc40F949F8a4e094D1b49a23ea9241D289B7b2819)
+- [FRAX](https://optimistic.etherscan.io/token/0x2E3D870790dC77A83DD1d18184Acc7439A53f475)
+- [frxETH](https://optimistic.etherscan.io/token/0x6806411765Af15Bddd26f8f544A34cC40cb9838B)
+
+## Deployment
+See `script/README.md` for more detail.
