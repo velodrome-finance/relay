@@ -64,7 +64,7 @@ contract AutoCompounderTest is BaseTest {
             new address[](0)
         );
         escrow.approve(address(autoCompounderFactory), mTokenId);
-        autoCompounder = AutoCompounder(autoCompounderFactory.createAutoCompounder(address(owner), mTokenId));
+        autoCompounder = AutoCompounder(autoCompounderFactory.createAutoCompounder(address(owner), mTokenId, ""));
 
         skipToNextEpoch(1 hours + 1);
 
@@ -765,5 +765,51 @@ contract AutoCompounderTest is BaseTest {
             amountsIn,
             amountsOutMin
         );
+    }
+
+    function testName() public {
+        // Create autoCompounder with a name
+        vm.prank(escrow.allowedManager());
+        mTokenId = escrow.createManagedLockFor(address(owner));
+
+        vm.startPrank(address(owner));
+        escrow.approve(address(autoCompounderFactory), mTokenId);
+        escrow.setApprovalForAll(address(owner2), true);
+        vm.stopPrank();
+        vm.prank(address(owner2));
+        autoCompounder = AutoCompounder(autoCompounderFactory.createAutoCompounder(address(owner), mTokenId, "Test"));
+
+        assertEq(autoCompounder.name(), "Test");
+
+        // Create an autoCompounder without a name
+        vm.prank(escrow.allowedManager());
+        mTokenId = escrow.createManagedLockFor(address(owner));
+
+        vm.startPrank(address(owner));
+        escrow.approve(address(autoCompounderFactory), mTokenId);
+        escrow.setApprovalForAll(address(owner2), true);
+        vm.stopPrank();
+        vm.prank(address(owner2));
+        autoCompounder = AutoCompounder(autoCompounderFactory.createAutoCompounder(address(owner), mTokenId, ""));
+
+        assertEq(autoCompounder.name(), "");
+    }
+
+    function testSetName() public {
+        assertEq(autoCompounder.name(), "");
+        vm.startPrank(address(owner));
+        autoCompounder.setName("New name");
+        assertEq(autoCompounder.name(), "New name");
+        autoCompounder.setName("Second new name");
+        assertEq(autoCompounder.name(), "Second new name");
+    }
+
+    function testCannotSetNameIfNotAdmin() public {
+        bytes memory revertString = bytes(
+            "AccessControl: account 0x7d28001937fe8e131f76dae9e9947adedbd0abde is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
+        );
+        vm.startPrank(address(owner2));
+        vm.expectRevert(revertString);
+        autoCompounder.setName("Some totally new name");
     }
 }

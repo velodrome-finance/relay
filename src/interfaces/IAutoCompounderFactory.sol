@@ -15,7 +15,7 @@ interface IAutoCompounderFactory {
 
     event AddKeeper(address indexed _keeper);
     event AddHighLiquidityToken(address indexed _token);
-    event CreateAutoCompounder(address indexed _from, address indexed _admin, address indexed _autoCompounder);
+    event CreateAutoCompounder(address indexed _from, address indexed _admin, string name, address _autoCompounder);
     event RemoveKeeper(address indexed _keeper);
     event SetRewardAmount(uint256 _rewardAmount);
 
@@ -33,7 +33,11 @@ interface IAutoCompounderFactory {
     /// @notice Create an AutoCompounder for a (m)veNFT
     /// @param _admin Admin address to set slippage tolerance / manage ALLOWED_CALLER
     /// @param _tokenId .
-    function createAutoCompounder(address _admin, uint256 _tokenId) external returns (address autoCompounder);
+    function createAutoCompounder(
+        address _admin,
+        uint256 _tokenId,
+        string calldata _name
+    ) external returns (address autoCompounder);
 
     /// @notice Set the amount of VELO to reward a public caller of `AutoCompounder.claimXAndCompound()`
     ///         Callable by FactoryRegistry.owner()

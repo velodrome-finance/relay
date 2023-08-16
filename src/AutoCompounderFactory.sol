@@ -60,7 +60,11 @@ contract AutoCompounderFactory is IAutoCompounderFactory, ERC2771Context {
     }
 
     /// @inheritdoc IAutoCompounderFactory
-    function createAutoCompounder(address _admin, uint256 _tokenId) external returns (address autoCompounder) {
+    function createAutoCompounder(
+        address _admin,
+        uint256 _tokenId,
+        string calldata _name
+    ) external returns (address autoCompounder) {
         address sender = _msgSender();
         if (_admin == address(0)) revert ZeroAddress();
         if (_tokenId == 0) revert TokenIdZero();
@@ -68,14 +72,14 @@ contract AutoCompounderFactory is IAutoCompounderFactory, ERC2771Context {
         if (ve.escrowType(_tokenId) != IVotingEscrow.EscrowType.MANAGED) revert TokenIdNotManaged();
 
         // create the autocompounder contract
-        autoCompounder = address(new AutoCompounder(forwarder, router, voter, optimizer, _admin));
+        autoCompounder = address(new AutoCompounder(forwarder, router, voter, optimizer, _admin, _name));
 
         // transfer nft to autocompounder
         ve.safeTransferFrom(ve.ownerOf(_tokenId), autoCompounder, _tokenId);
         AutoCompounder(autoCompounder).initialize(_tokenId);
 
         _autoCompounders.add(autoCompounder);
-        emit CreateAutoCompounder(sender, _admin, autoCompounder);
+        emit CreateAutoCompounder(sender, _admin, _name, autoCompounder);
     }
 
     /// @inheritdoc IAutoCompounderFactory

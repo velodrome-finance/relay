@@ -27,6 +27,7 @@ interface IAutoCompounder {
         uint256 balanceRewarded,
         uint256 balanceCompounded
     );
+    event SetName(string oldName, string newName);
     event SwapTokenToVELO(
         address indexed claimer,
         address indexed token,
@@ -46,6 +47,9 @@ interface IAutoCompounder {
     // -------------------------------------------------
     // Public functions
     // -------------------------------------------------
+
+    /// @notice Get the name of the autoCompounder
+    function name() external view returns (string memory);
 
     /// @notice Claim rebases by the RewardsDistributor and earned bribes earned by the managed tokenId and
     ///             compound by swapping to VELO, rewarding the caller, and depositing into the managed veNFT.
@@ -113,6 +117,11 @@ interface IAutoCompounder {
     // -------------------------------------------------
     // DEFAULT_ADMIN_ROLE functions
     // -------------------------------------------------
+
+    /// @notice Set the name of the autoCompounder
+    ///         Only callable by DEFAULT_ADMIN_ROLE
+    /// @param _name New name for autoCompounder
+    function setName(string calldata _name) external;
 
     /// @notice Claim earned bribes by the managed tokenId and send the tokens to recipients
     ///         Only callable by DEFAULT_ADMIN_ROLE

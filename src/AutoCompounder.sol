@@ -39,18 +39,21 @@ contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, Reentr
     ICompoundOptimizer public immutable optimizer;
 
     uint256 public tokenId;
+    string public name;
 
     constructor(
         address _forwarder,
         address _router,
         address _voter,
         address _optimizer,
-        address _admin
+        address _admin,
+        string memory _name
     ) ERC2771Context(_forwarder) {
         autoCompounderFactory = IAutoCompounderFactory(_msgSender());
         router = IRouter(_router);
         voter = IVoter(_voter);
         optimizer = ICompoundOptimizer(_optimizer);
+        name = _name;
 
         ve = IVotingEscrow(voter.ve());
         velo = IVelo(ve.token());
@@ -221,6 +224,12 @@ contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, Reentr
     // -------------------------------------------------
     // DEFAULT_ADMIN_ROLE functions
     // -------------------------------------------------
+
+    function setName(string calldata _name) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        string memory oldName = name;
+        name = _name;
+        emit SetName(oldName, _name);
+    }
 
     /// @inheritdoc IAutoCompounder
     function claimBribesAndSweep(
