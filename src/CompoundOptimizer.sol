@@ -9,7 +9,7 @@ import {IVotingEscrow} from "@velodrome/contracts/interfaces/IVotingEscrow.sol";
 import {IVoter} from "@velodrome/contracts/interfaces/IVoter.sol";
 import {IPool} from "@velodrome/contracts/interfaces/IPool.sol";
 
-/// @notice Storage for all AutoCompounders to call to calculate optimal amountOut into VELO
+/// @notice Helper contract to calculate optimal amountOut from the Velodrome v2 Router
 /// @author velodrome.finance, @pegahcarter
 contract CompoundOptimizer is ICompoundOptimizer {
     address public immutable weth;

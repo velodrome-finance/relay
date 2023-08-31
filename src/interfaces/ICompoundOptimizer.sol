@@ -7,6 +7,16 @@ interface ICompoundOptimizer {
     error NotEnoughPoints();
     error RouteDoesNotExist();
 
+    function usdc() external view returns (address);
+
+    function weth() external view returns (address);
+
+    function op() external view returns (address);
+
+    function velo() external view returns (address);
+
+    function factory() external view returns (address);
+
     /// @notice Given a token and the amountIn, return the route to return the most VELO given 5 potential routes
     ///             of v2 Velodrome pools
     ///         If all potential routes return an amountOut of 0, returns 0
