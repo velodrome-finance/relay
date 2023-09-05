@@ -463,6 +463,7 @@ contract AutoCompounderTest is BaseTest {
         // no reward given to caller this time- full amount deposited into mTokenId
         assertEq(VELO.balanceOf(address(owner)), veloBalanceBefore);
         assertEq(escrow.balanceOfNFT(mTokenId), balanceBefore + amountOut);
+        assertEq(autoCompounder.amountTokenEarned(VelodromeTimeLibrary.epochStart(block.timestamp)), amountOut);
     }
 
     function testCannotInitializeTwice() external {

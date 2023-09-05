@@ -10,6 +10,7 @@ import {IVelo} from "@velodrome/contracts/interfaces/IVelo.sol";
 import {IVoter} from "@velodrome/contracts/interfaces/IVoter.sol";
 import {IVotingEscrow} from "@velodrome/contracts/interfaces/IVotingEscrow.sol";
 import {IRewardsDistributor} from "@velodrome/contracts/interfaces/IRewardsDistributor.sol";
+import {VelodromeTimeLibrary} from "@velodrome/contracts/libraries/VelodromeTimeLibrary.sol";
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -40,6 +41,8 @@ contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, Reentr
 
     uint256 public tokenId;
     string public name;
+
+    mapping(uint256 epoch => uint256 amount) public amountTokenEarned;
 
     constructor(
         address _forwarder,
@@ -85,6 +88,7 @@ contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, Reentr
         _;
     }
 
+    /// @dev Keep amountTokenEarned for the epoch synced based on the balance before and after operations
     modifier onlyFirstDayOfEpoch(bool _yes) {
         uint256 timestamp = block.timestamp;
         uint256 firstDayEnd = timestamp - (timestamp % WEEK) + 1 days;
@@ -101,6 +105,15 @@ contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, Reentr
     modifier onlyKeeper(address _sender) {
         if (!autoCompounderFactory.isKeeper(_sender)) revert NotKeeper();
         _;
+    }
+
+    modifier syncAmountEarned() {
+        uint256 balBefore = ve.balanceOfNFT(tokenId);
+        _;
+        uint256 balAfter = ve.balanceOfNFT(tokenId);
+        if (balBefore < balAfter) {
+            amountTokenEarned[VelodromeTimeLibrary.epochStart(block.timestamp)] += balAfter - balBefore;
+        }
     }
 
     // -------------------------------------------------
@@ -344,7 +357,7 @@ contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, Reentr
 
     /// @dev Claim any rebase by the RewardsDistributor, reward the caller if publicly called, and deposit VELO
     ///          into the managed veNFT.
-    function _rewardAndCompound() internal {
+    function _rewardAndCompound() internal syncAmountEarned {
         address sender = _msgSender();
         bool isCalledByKeeper = autoCompounderFactory.isKeeper(sender);
         uint256 balance = velo.balanceOf(address(this));
