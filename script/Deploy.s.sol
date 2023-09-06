@@ -12,7 +12,7 @@ contract Deploy is Script {
     using stdJson for string;
 
     uint256 public deployPrivateKey = vm.envUint("PRIVATE_KEY_DEPLOY");
-    address public deployerAddress = vm.addr(deployPrivateKey);
+    address public deployerAddress = vm.rememberKey(deployPrivateKey);
     string public constantsFilename = vm.envString("CONSTANTS_FILENAME");
     string public outputFilename = vm.envString("OUTPUT_FILENAME");
 
