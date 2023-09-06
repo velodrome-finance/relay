@@ -15,7 +15,7 @@ interface IAutoCompounderFactory {
 
     event AddKeeper(address indexed _keeper);
     event AddHighLiquidityToken(address indexed _token);
-    event CreateAutoCompounder(address indexed _from, address indexed _admin, string name, address _autoCompounder);
+    event CreateAutoCompounder(address indexed _from, address indexed _admin, string _name, address _autoCompounder);
     event RemoveKeeper(address indexed _keeper);
     event SetRewardAmount(uint256 _rewardAmount);
 

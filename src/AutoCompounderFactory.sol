@@ -72,7 +72,7 @@ contract AutoCompounderFactory is IAutoCompounderFactory, ERC2771Context {
         if (ve.escrowType(_tokenId) != IVotingEscrow.EscrowType.MANAGED) revert TokenIdNotManaged();
 
         // create the autocompounder contract
-        autoCompounder = address(new AutoCompounder(forwarder, router, voter, optimizer, _admin, _name));
+        autoCompounder = address(new AutoCompounder(forwarder, voter, _admin, _name, router, optimizer));
 
         // transfer nft to autocompounder
         ve.safeTransferFrom(ve.ownerOf(_tokenId), autoCompounder, _tokenId);

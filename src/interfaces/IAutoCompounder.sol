@@ -20,13 +20,8 @@ interface IAutoCompounder {
     error UnequalLengths();
     error ZeroAddress();
 
-    event RewardAndCompound(
-        address indexed claimer,
-        uint256 indexed tokenId,
-        bool indexed isCalledByKeeper,
-        uint256 balanceRewarded,
-        uint256 balanceCompounded
-    );
+    event Reward(address indexed sender, uint256 balanceRewarded);
+    event Compound(uint256 balanceCompounded);
     event SetName(string oldName, string newName);
     event SwapTokenToVELO(
         address indexed claimer,
@@ -48,71 +43,28 @@ interface IAutoCompounder {
     // Public functions
     // -------------------------------------------------
 
-    /// @notice Get the name of the autoCompounder
-    function name() external view returns (string memory);
-
-    /// @notice Claim rebases by the RewardsDistributor and earned bribes earned by the managed tokenId and
-    ///             compound by swapping to VELO, rewarding the caller, and depositing into the managed veNFT.
-    ///         Publicly callable in the final 24 hours before the epoch flip.
-    ///         Swapping is done through the optimal route determined from CompoundOptimizer by swapping the entire balance
-    /// @dev Slippage values cannot exceed 500 (equivalent to 5%)
-    /// @param _bribes          Addresses of BribeVotingRewards contracts
-    /// @param _tokens          Array of arrays for which tokens to claim for each BribeVotingRewards contract
-    /// @param _tokensToSwap    Addresses of tokens to convert into VELO
-    /// @param _slippages       Amount of slippage per token to swap, in basis points
-    function claimBribesAndCompound(
-        address[] calldata _bribes,
-        address[][] calldata _tokens,
-        address[] calldata _tokensToSwap,
-        uint256[] calldata _slippages
-    ) external;
-
-    /// @notice Same as claimBribesAndCompound() with an additional argument of a user-provided swap routes
-    /// @dev Optional routes are provided when the optional amountOut exceeds the amountOut calculated by CompoundOptimizer
-    function claimBribesAndCompound(
-        address[] memory _bribes,
-        address[][] memory _tokens,
-        address[] memory _tokensToSwap,
-        IRouter.Route[][] memory _optionalRoutes,
-        uint256[] memory _slippages
-    ) external;
-
-    /// @notice Same as claimBribesAndCompound() but for FeesVotingRewards contracts
-    /// @param _fees .
-    /// @param _tokens .
-    /// @param _tokensToSwap .
-    /// @param _slippages .
-    function claimFeesAndCompound(
-        address[] calldata _fees,
-        address[][] calldata _tokens,
-        address[] calldata _tokensToSwap,
-        uint256[] calldata _slippages
-    ) external;
-
-    /// @notice Same as claimFeesAndCompound() with an additional argument of user-provided swap routes
-    /// @dev Optional routes are provided when the optional amountOut exceeds the amountOut calculated by CompoundOptimizer
-    function claimFeesAndCompound(
-        address[] memory _fees,
-        address[][] memory _tokens,
-        address[] memory _tokensToSwap,
-        IRouter.Route[][] memory _optionalRoutes,
-        uint256[] memory _slippages
-    ) external;
-
-    /// @notice Swap tokens held by the autoCompounder into VELO using the optimal route determined by
+    /// @notice Swap token held by the autoCompounder into VELO using the optimal route determined by
     ///             the CompoundOptimizer
     ///         Publicly callable in the final 24 hours before the epoch flip
-    /// @param _tokensToSwap .
-    /// @param _slippages .
-    function swapTokensToVELOAndCompound(address[] calldata _tokensToSwap, uint256[] calldata _slippages) external;
+    /// @param _tokenToSwap .
+    /// @param _slippage .
+    function swapTokenToVELO(address _tokenToSwap, uint256 _slippage) external;
 
-    /// @notice Same as swapTokensToVELOAndCompound with an additional argument of a user-provided swap routes
-    /// @dev Optional routes are provided when the optional AmountOut exceeds the amountOut calculated by CompoundOptimizer
-    function swapTokensToVELOAndCompound(
-        address[] memory _tokensToSwap,
-        IRouter.Route[][] memory _optionalRoutes,
-        uint256[] memory _slippages
+    /// @notice Same as swapTokensToVELO with an additional argument of a user-provided swap route
+    /// @dev Optional routes are provided when the optional amountOut exceeds the amountOut calculated by CompoundOptimizer
+    function swapTokenToVELOWithOptionalRoute(
+        address _tokenToSwap,
+        uint256 _slippage,
+        IRouter.Route[] memory _optionalRoutes
     ) external;
+
+    /// @notice Claim any rebase by the RewardsDistributor, reward the caller if publicly called, and deposit VELO
+    ///          into the managed veNFT.
+    ///         Publicly callable in the final 24 hours before the epoch flip
+    function rewardAndCompound() external;
+
+    /// @notice Claim any rebase by the RewardsDistributor, and deposit VELO into the managed veNFT
+    function compound() external;
 
     // -------------------------------------------------
     // DEFAULT_ADMIN_ROLE functions
@@ -122,33 +74,6 @@ interface IAutoCompounder {
     ///         Only callable by DEFAULT_ADMIN_ROLE
     /// @param _name New name for autoCompounder
     function setName(string calldata _name) external;
-
-    /// @notice Claim earned bribes by the managed tokenId and send the tokens to recipients
-    ///         Only callable by DEFAULT_ADMIN_ROLE
-    ///         Only callable within the first 24 hours after an epoch flip
-    ///         Can only sweep tokens that do not exist within AutoCompounderFactory.isHighLiquidityToken()
-    /// @param _bribes          Addresses of BribeVotingRewards contracts
-    /// @param _tokens          Array of arrays for which tokens to claim for each BribeVotingRewards contract
-    /// @param _tokensToSweep   Addresses of tokens to sweep from the AutoCompounder
-    /// @param _recipients      Addresses of recipients to receive the swept tokens
-    function claimBribesAndSweep(
-        address[] calldata _bribes,
-        address[][] calldata _tokens,
-        address[] calldata _tokensToSweep,
-        address[] calldata _recipients
-    ) external;
-
-    /// @notice Same as claimBribesAndSweep() but for FeesVotingRewards contracts
-    /// @param _fees .
-    /// @param _tokens .
-    /// @param _tokensToSweep .
-    /// @param _recipients .
-    function claimFeesAndSweep(
-        address[] calldata _fees,
-        address[][] calldata _tokens,
-        address[] calldata _tokensToSweep,
-        address[] calldata _recipients
-    ) external;
 
     /// @notice Sweep tokens within AutoCompounder to recipients
     ///         Only callable by DEFAULT_ADMIN_ROLE
@@ -160,42 +85,16 @@ interface IAutoCompounder {
     function sweep(address[] calldata _tokensToSweep, address[] calldata _recipients) external;
 
     // -------------------------------------------------
-    // ALLOWED_CALLER functions
-    // -------------------------------------------------
-
-    /// @notice Additional functionality for ALLOWED_CALLER to deposit more VELO into the managed tokenId.
-    ///         This is effectively a bribe bonus for users that deposited into the autocompounder.
-    function increaseAmount(uint256 _value) external;
-
-    /// @notice Vote for Velodrome pools with the given weights.
-    ///         Only callable by ALLOWED_CALLER.
-    /// @dev Refer to IVoter.vote()
-    function vote(address[] calldata _poolVote, uint256[] calldata _weights) external;
-
-    // -------------------------------------------------
     // Keeper functions
     // -------------------------------------------------
 
-    /// @notice Claim rebases by the RewardsDistributor and voting rewards earned by the managed tokenId and
-    ///             compound by swapping to VELO and depositing into the managed veNFT.
+    /// @notice Swap a token into VELO as called by an authorized keeper
     ///         Only callable by keepers added by FactoryRegistry.owner() within AutoCompounderFactory.
     ///         Only callable 24 hours after the epoch flip
-    ///         Swapping is done with routes and amounts swapped determined by the keeper.
-    /// @dev _amountsIn and _amountsOutMin cannot be 0.
-    /// @param _bribes          Addresses of BribeVotingRewards contracts
-    /// @param _bribesTokens    Array of arrays for which tokens to claim for each BribeVotingRewards contract
-    /// @param _fees            Addresses of FeesVotingRewards contracts
-    /// @param _feesTokens      Array of arrays for which tokens to claim for each FeesVotingRewards contract
-    /// @param _allRoutes       Array of arrays for which swap routes to execute
-    /// @param _amountsIn       Amount of token in for each swap route
-    /// @param _amountsOutMin   Minimum amount of token received for each swap route
-    function claimAndCompoundKeeper(
-        address[] calldata _bribes,
-        address[][] calldata _bribesTokens,
-        address[] calldata _fees,
-        address[][] calldata _feesTokens,
-        IRouter.Route[][] calldata _allRoutes,
-        uint256[] calldata _amountsIn,
-        uint256[] calldata _amountsOutMin
-    ) external;
+    ///         Swapping is done with routes and amount swapped determined by the keeper.
+    /// @dev _amountIn and _amountOutMin cannot be 0.
+    /// @param _routes          Array for which swap routes to execute
+    /// @param _amountIn        Amount of token in for each swap route
+    /// @param _amountOutMin    Minimum amount of token received for each swap route
+    function swapTokenToVELOKeeper(IRouter.Route[] calldata _routes, uint256 _amountIn, uint256 _amountOutMin) external;
 }

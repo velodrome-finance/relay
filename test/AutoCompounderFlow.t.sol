@@ -34,7 +34,6 @@ contract AutoCompounderFlow is AutoCompounderTest {
 
         bribes.push(address(bribeVotingReward));
         tokensToClaim.push(rewards);
-        slippages.push(0);
 
         // Epoch 0: DAI bribed => voted for DAI bribe
         // Epoch 1: DAI bribed => passive vote
@@ -61,12 +60,13 @@ contract AutoCompounderFlow is AutoCompounderTest {
         uint256 preNFTBalance = escrow.balanceOfNFT(mTokenId);
         uint256 preCallerVELO = VELO.balanceOf(address(owner2));
 
+        uint256 slippage = 500;
+        bytes[] memory calls = new bytes[](3);
+        calls[0] = abi.encodeCall(autoCompounder.claimBribes, (bribes, tokensToClaim));
+        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(DAI), slippage));
+        calls[2] = abi.encodeWithSelector(autoCompounder.rewardAndCompound.selector);
         vm.prank(address(owner2));
-        tokensToSwap = new address[](1);
-        tokensToSwap[0] = address(DAI);
-        slippages = new uint256[](1);
-        slippages[0] = 500;
-        autoCompounder.claimBribesAndCompound(bribes, tokensToClaim, tokensToSwap, slippages);
+        autoCompounder.multicall(calls);
 
         assertEq(DAI.balanceOf(address(bribeVotingReward)), 0);
         assertEq(DAI.balanceOf(address(autoCompounder)), 0);
@@ -87,9 +87,10 @@ contract AutoCompounderFlow is AutoCompounderTest {
 
         tokensToClaim = new address[][](1);
         tokensToClaim[0] = [address(USDC)];
-        tokensToSwap[0] = address(USDC);
+        calls[0] = abi.encodeCall(autoCompounder.claimBribes, (bribes, tokensToClaim));
+        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(USDC), slippage));
         vm.prank(address(owner2));
-        autoCompounder.claimBribesAndCompound(bribes, tokensToClaim, tokensToSwap, slippages);
+        autoCompounder.multicall(calls);
 
         assertEq(USDC.balanceOf(address(bribeVotingReward)), 0);
         assertEq(FRAX.balanceOf(address(bribeVotingReward)), bribeToken);
@@ -109,9 +110,10 @@ contract AutoCompounderFlow is AutoCompounderTest {
         preCallerVELO = VELO.balanceOf(address(owner2));
 
         tokensToClaim[0] = [address(FRAX)];
-        tokensToSwap[0] = address(FRAX);
+        calls[0] = abi.encodeCall(autoCompounder.claimBribes, (bribes, tokensToClaim));
+        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(FRAX), slippage));
         vm.prank(address(owner2));
-        autoCompounder.claimBribesAndCompound(bribes, tokensToClaim, tokensToSwap, slippages);
+        autoCompounder.multicall(calls);
 
         assertEq(DAI.balanceOf(address(bribeVotingReward)), bribeToken);
         assertEq(USDC.balanceOf(address(bribeVotingReward)), bribeUSDC * 2);
@@ -137,12 +139,14 @@ contract AutoCompounderFlow is AutoCompounderTest {
         preCallerVELO = VELO.balanceOf(address(owner2));
 
         tokensToClaim[0] = [address(DAI), address(USDC), address(FRAX)];
+        calls = new bytes[](5);
+        calls[0] = abi.encodeCall(autoCompounder.claimBribes, (bribes, tokensToClaim));
+        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(DAI), slippage));
+        calls[2] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(FRAX), slippage));
+        calls[3] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(USDC), slippage));
+        calls[4] = abi.encodeWithSelector(autoCompounder.rewardAndCompound.selector);
         vm.prank(address(owner2));
-        tokensToSwap = new address[](3);
-        tokensToSwap = [address(DAI), address(FRAX), address(USDC)];
-        slippages = new uint256[](3);
-        slippages = [500, 500, 500];
-        autoCompounder.claimBribesAndCompound(bribes, tokensToClaim, tokensToSwap, slippages);
+        autoCompounder.multicall(calls);
 
         assertEq(DAI.balanceOf(address(bribeVotingReward)), 0);
         assertEq(USDC.balanceOf(address(bribeVotingReward)), 0);
@@ -166,7 +170,6 @@ contract AutoCompounderFlow is AutoCompounderTest {
 
         fees.push(address(feesVotingReward));
         tokensToClaim.push(rewards);
-        slippages.push(0);
 
         // Epoch 0: FRAX fees => voted for FRAX fees
         // Epoch 1: FRAX fees => passive vote
@@ -193,12 +196,13 @@ contract AutoCompounderFlow is AutoCompounderTest {
         uint256 preNFTBalance = escrow.balanceOfNFT(mTokenId);
         uint256 preCallerVELO = VELO.balanceOf(address(owner2));
 
-        tokensToSwap = new address[](1);
-        tokensToSwap[0] = address(FRAX);
-        slippages = new uint256[](1);
-        slippages[0] = 500;
+        uint256 slippage = 500;
+        bytes[] memory calls = new bytes[](3);
+        calls[0] = abi.encodeCall(autoCompounder.claimFees, (fees, tokensToClaim));
+        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(FRAX), slippage));
+        calls[2] = abi.encodeWithSelector(autoCompounder.rewardAndCompound.selector);
         vm.prank(address(owner2));
-        autoCompounder.claimFeesAndCompound(fees, tokensToClaim, tokensToSwap, slippages);
+        autoCompounder.multicall(calls);
 
         assertEq(FRAX.balanceOf(address(feesVotingReward)), 0);
         assertEq(FRAX.balanceOf(address(autoCompounder)), 0);
@@ -219,9 +223,10 @@ contract AutoCompounderFlow is AutoCompounderTest {
 
         tokensToClaim = new address[][](1);
         tokensToClaim[0] = [address(USDC)];
-        tokensToSwap[0] = address(USDC);
+        calls[0] = abi.encodeCall(autoCompounder.claimFees, (fees, tokensToClaim));
+        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(USDC), slippage));
         vm.prank(address(owner2));
-        autoCompounder.claimFeesAndCompound(fees, tokensToClaim, tokensToSwap, slippages);
+        autoCompounder.multicall(calls);
 
         assertEq(USDC.balanceOf(address(feesVotingReward)), 0);
         assertEq(FRAX.balanceOf(address(feesVotingReward)), bribeToken);
@@ -241,9 +246,10 @@ contract AutoCompounderFlow is AutoCompounderTest {
         preCallerVELO = VELO.balanceOf(address(owner2));
 
         tokensToClaim[0] = [address(FRAX)];
-        tokensToSwap[0] = address(FRAX);
+        calls[0] = abi.encodeCall(autoCompounder.claimFees, (fees, tokensToClaim));
+        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(FRAX), slippage));
         vm.prank(address(owner2));
-        autoCompounder.claimFeesAndCompound(fees, tokensToClaim, tokensToSwap, slippages);
+        autoCompounder.multicall(calls);
 
         assertEq(FRAX.balanceOf(address(feesVotingReward)), bribeToken);
         assertEq(USDC.balanceOf(address(feesVotingReward)), bribeUSDC * 2);
@@ -268,9 +274,12 @@ contract AutoCompounderFlow is AutoCompounderTest {
 
         vm.prank(address(owner2));
         tokensToClaim[0] = [address(FRAX), address(USDC)];
-        tokensToSwap.push(address(USDC));
-        slippages.push(500);
-        autoCompounder.claimFeesAndCompound(fees, tokensToClaim, tokensToSwap, slippages);
+        calls = new bytes[](4);
+        calls[0] = abi.encodeCall(autoCompounder.claimFees, (fees, tokensToClaim));
+        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(FRAX), slippage));
+        calls[2] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(USDC), slippage));
+        calls[3] = abi.encodeWithSelector(autoCompounder.rewardAndCompound.selector);
+        autoCompounder.multicall(calls);
 
         assertEq(FRAX.balanceOf(address(feesVotingReward)), 0);
         assertEq(USDC.balanceOf(address(feesVotingReward)), 0);

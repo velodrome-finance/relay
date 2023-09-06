@@ -24,7 +24,6 @@ contract AutoConverterFactory is IAutoConverterFactory, ERC2771Context {
     Ownable public immutable factoryRegistry;
     IVotingEscrow public immutable ve;
 
-    EnumerableSet.AddressSet private _highLiquidityTokens;
     EnumerableSet.AddressSet private _autoConverters;
     EnumerableSet.AddressSet private _keepers;
 
@@ -44,9 +43,10 @@ contract AutoConverterFactory is IAutoConverterFactory, ERC2771Context {
 
     /// @inheritdoc IAutoConverterFactory
     function createAutoConverter(
-        address _token,
         address _admin,
-        uint256 _mTokenId
+        uint256 _mTokenId,
+        string calldata _name,
+        address _token
     ) external returns (address autoConverter) {
         address sender = _msgSender();
         if (_admin == address(0)) revert ZeroAddress();
@@ -55,14 +55,14 @@ contract AutoConverterFactory is IAutoConverterFactory, ERC2771Context {
         if (ve.escrowType(_mTokenId) != IVotingEscrow.EscrowType.MANAGED) revert TokenIdNotManaged();
 
         // create the autoconverter contract
-        autoConverter = address(new AutoConverter(forwarder, router, voter, _token, _admin));
+        autoConverter = address(new AutoConverter(forwarder, voter, _admin, _name, router, _token));
 
         // transfer nft to autoconverter
         ve.safeTransferFrom(ve.ownerOf(_mTokenId), autoConverter, _mTokenId);
         AutoConverter(autoConverter).initialize(_mTokenId);
 
         _autoConverters.add(autoConverter);
-        emit CreateAutoConverter(sender, _admin, autoConverter);
+        emit CreateAutoConverter(sender, _admin, _name, autoConverter);
     }
 
     /// @inheritdoc IAutoConverterFactory

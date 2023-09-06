@@ -30,12 +30,12 @@ contract AutoConverterFactoryTest is BaseTest {
 
     function testCannotCreateAutoConverterWithNoAdmin() public {
         vm.expectRevert(IAutoConverterFactory.ZeroAddress.selector);
-        autoConverterFactory.createAutoConverter(address(USDC), address(0), 1);
+        autoConverterFactory.createAutoConverter(address(0), 1, "", address(USDC));
     }
 
     function testCannotCreateAutoConverterWithZeroTokenId() public {
         vm.expectRevert(IAutoConverterFactory.TokenIdZero.selector);
-        autoConverterFactory.createAutoConverter(address(USDC), address(1), 0);
+        autoConverterFactory.createAutoConverter(address(1), 0, "", address(USDC));
     }
 
     function testCannotCreateAutoConverterIfNotApprovedSender() public {
@@ -47,20 +47,20 @@ contract AutoConverterFactoryTest is BaseTest {
         vm.stopPrank();
         vm.expectRevert(IAutoConverterFactory.TokenIdNotApproved.selector);
         vm.prank(address(owner2));
-        autoConverterFactory.createAutoConverter(address(USDC), address(1), mTokenId);
+        autoConverterFactory.createAutoConverter(address(1), mTokenId, "", address(USDC));
     }
 
     function testCannotCreateAutoConverterIfTokenNotManaged() public {
         VELO.approve(address(escrow), TOKEN_1);
         tokenId = escrow.createLock(TOKEN_1, MAXTIME);
         vm.expectRevert(IAutoConverterFactory.TokenIdNotManaged.selector);
-        autoConverterFactory.createAutoConverter(address(USDC), address(1), tokenId); // normal
+        autoConverterFactory.createAutoConverter(address(1), tokenId, "", address(USDC)); // normal
 
         vm.prank(escrow.allowedManager());
         mTokenId = escrow.createManagedLockFor(address(owner));
         voter.depositManaged(tokenId, mTokenId);
         vm.expectRevert(IAutoConverterFactory.TokenIdNotManaged.selector);
-        autoConverterFactory.createAutoConverter(address(USDC), address(1), tokenId); // locked
+        autoConverterFactory.createAutoConverter(address(1), tokenId, "", address(USDC)); // locked
     }
 
     function testCreateAutoConverter() public {
@@ -72,7 +72,7 @@ contract AutoConverterFactoryTest is BaseTest {
         vm.startPrank(address(owner));
         escrow.approve(address(autoConverterFactory), mTokenId);
         autoConverter = AutoConverter(
-            autoConverterFactory.createAutoConverter(address(USDC), address(owner), mTokenId)
+            autoConverterFactory.createAutoConverter(address(owner), mTokenId, "", address(USDC))
         );
 
         assertFalse(address(autoConverter) == address(0));
@@ -92,7 +92,7 @@ contract AutoConverterFactoryTest is BaseTest {
         assertTrue(autoConverter.hasRole(0x00, address(owner))); // DEFAULT_ADMIN_ROLE
         assertTrue(autoConverter.hasRole(keccak256("ALLOWED_CALLER"), address(owner)));
 
-        assertEq(autoConverter.tokenId(), mTokenId);
+        assertEq(autoConverter.mTokenId(), mTokenId);
     }
 
     function testCreateAutoConverterByApproved() public {
@@ -107,7 +107,7 @@ contract AutoConverterFactoryTest is BaseTest {
         vm.stopPrank();
         vm.prank(address(owner2));
         autoConverter = AutoConverter(
-            autoConverterFactory.createAutoConverter(address(USDC), address(owner), mTokenId)
+            autoConverterFactory.createAutoConverter(address(owner), mTokenId, "", address(USDC))
         );
 
         assertFalse(address(autoConverter) == address(0));
@@ -116,7 +116,7 @@ contract AutoConverterFactoryTest is BaseTest {
         assertEq(address(autoConverter), autoConverters[0]);
         assertEq(escrow.balanceOf(address(autoConverter)), 1);
         assertEq(escrow.ownerOf(mTokenId), address(autoConverter));
-        assertEq(autoConverter.tokenId(), mTokenId);
+        assertEq(autoConverter.mTokenId(), mTokenId);
     }
 
     function testCreateAutoConverterByApprovedForAll() public {
@@ -131,7 +131,7 @@ contract AutoConverterFactoryTest is BaseTest {
         vm.stopPrank();
         vm.prank(address(owner2));
         autoConverter = AutoConverter(
-            autoConverterFactory.createAutoConverter(address(USDC), address(owner), mTokenId)
+            autoConverterFactory.createAutoConverter(address(owner), mTokenId, "", address(USDC))
         );
 
         assertFalse(address(autoConverter) == address(0));
@@ -140,7 +140,7 @@ contract AutoConverterFactoryTest is BaseTest {
         assertEq(address(autoConverter), autoConverters[0]);
         assertEq(escrow.balanceOf(address(autoConverter)), 1);
         assertEq(escrow.ownerOf(mTokenId), address(autoConverter));
-        assertEq(autoConverter.tokenId(), mTokenId);
+        assertEq(autoConverter.mTokenId(), mTokenId);
     }
 
     function testCannotAddKeeperIfNotTeam() public {

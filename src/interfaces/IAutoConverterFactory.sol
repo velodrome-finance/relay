@@ -11,17 +11,19 @@ interface IAutoConverterFactory {
     error ZeroAddress();
 
     event AddKeeper(address indexed _keeper);
-    event CreateAutoConverter(address indexed _from, address indexed _admin, address indexed _autoConverter);
+    event CreateAutoConverter(address indexed _from, address indexed _admin, string _name, address _autoConverter);
     event RemoveKeeper(address indexed _keeper);
 
     /// @notice Create an AutoConverter for a (m)veNFT
-    /// @param _token Address of token to convert into
-    /// @param _admin Admin address to set slippage tolerance / manage ALLOWED_CALLER
-    /// @param _mTokenId Unique identifier of the managed veNFT
+    /// @param _admin       Admin address to set slippage tolerance / manage ALLOWED_CALLER
+    /// @param _mTokenId    Unique identifier of the managed veNFT
+    /// @param _name        Name of the autoConverter
+    /// @param _token       Address of token to convert into
     function createAutoConverter(
-        address _token,
         address _admin,
-        uint256 _mTokenId
+        uint256 _mTokenId,
+        string calldata _name,
+        address _token
     ) external returns (address autoConverter);
 
     /// @notice Add an authorized keeper to call `AutoConverter.claimXAndConvertKeeper()`

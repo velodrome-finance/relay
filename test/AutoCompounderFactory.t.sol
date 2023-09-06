@@ -116,11 +116,10 @@ contract AutoCompounderFactoryTest is BaseTest {
         assertEq(address(autoCompounder.velo()), address(VELO));
         assertEq(address(autoCompounder.distributor()), escrow.distributor());
 
-        assertEq(VELO.allowance(address(autoCompounder), address(escrow)), type(uint256).max);
         assertTrue(autoCompounder.hasRole(0x00, address(owner))); // DEFAULT_ADMIN_ROLE
         assertTrue(autoCompounder.hasRole(keccak256("ALLOWED_CALLER"), address(owner)));
 
-        assertEq(autoCompounder.tokenId(), mTokenId);
+        assertEq(autoCompounder.mTokenId(), mTokenId);
     }
 
     function testCreateAutoCompounderByApproved() public {
@@ -142,7 +141,7 @@ contract AutoCompounderFactoryTest is BaseTest {
         assertEq(address(autoCompounder), autoCompounders[0]);
         assertEq(escrow.balanceOf(address(autoCompounder)), 1);
         assertEq(escrow.ownerOf(mTokenId), address(autoCompounder));
-        assertEq(autoCompounder.tokenId(), mTokenId);
+        assertEq(autoCompounder.mTokenId(), mTokenId);
     }
 
     function testCreateAutoCompounderByApprovedForAll() public {
@@ -164,7 +163,7 @@ contract AutoCompounderFactoryTest is BaseTest {
         assertEq(address(autoCompounder), autoCompounders[0]);
         assertEq(escrow.balanceOf(address(autoCompounder)), 1);
         assertEq(escrow.ownerOf(mTokenId), address(autoCompounder));
-        assertEq(autoCompounder.tokenId(), mTokenId);
+        assertEq(autoCompounder.mTokenId(), mTokenId);
     }
 
     function testCannotAddHighLiquidityTokenIfNotTeam() public {

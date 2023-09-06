@@ -13,71 +13,38 @@ import {IRewardsDistributor} from "@velodrome/contracts/interfaces/IRewardsDistr
 import {VelodromeTimeLibrary} from "@velodrome/contracts/libraries/VelodromeTimeLibrary.sol";
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 
-import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Relay} from "./Relay.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {Context} from "@openzeppelin/contracts/utils/Context.sol";
-import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title Velodrome AutoCompounder for Managed veNFTs
 /// @author velodrome.finance, @figs999, @pegahcarter
 /// @notice Auto-Compound voting rewards earned from a Managed veNFT back into the veNFT through call incentivization
-contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, ReentrancyGuard, AccessControl {
+contract AutoCompounder is IAutoCompounder, Relay {
     using SafeERC20 for IERC20;
-    bytes32 public constant ALLOWED_CALLER = keccak256("ALLOWED_CALLER");
     uint256 internal constant WEEK = 7 days;
     uint256 public constant MAX_SLIPPAGE = 500;
     uint256 public constant POINTS = 3;
 
     IAutoCompounderFactory public immutable autoCompounderFactory;
     IRouter public immutable router;
-    IVoter public immutable voter;
-    IVotingEscrow public immutable ve;
-    IVelo public immutable velo;
-    IRewardsDistributor public immutable distributor;
     ICompoundOptimizer public immutable optimizer;
-
-    uint256 public tokenId;
-    string public name;
 
     mapping(uint256 epoch => uint256 amount) public amountTokenEarned;
 
     constructor(
         address _forwarder,
-        address _router,
         address _voter,
-        address _optimizer,
         address _admin,
-        string memory _name
-    ) ERC2771Context(_forwarder) {
+        string memory _name,
+        address _router,
+        address _optimizer
+    ) Relay(_forwarder, _voter, _admin, _name) {
         autoCompounderFactory = IAutoCompounderFactory(_msgSender());
         router = IRouter(_router);
-        voter = IVoter(_voter);
         optimizer = ICompoundOptimizer(_optimizer);
-        name = _name;
 
-        ve = IVotingEscrow(voter.ve());
-        velo = IVelo(ve.token());
-        distributor = IRewardsDistributor(ve.distributor());
-
-        // max approval is safe because of the immutability of ve.
-        // This approval is only ever utilized from ve.increaseAmount() calls.
-        velo.approve(address(ve), type(uint256).max);
-
-        // Default admin can grant/revoke ALLOWED_CALLER roles
-        // See `ALLOWED_CALLER functions` section for permissions
-        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(ALLOWED_CALLER, _admin);
-    }
-
-    /// @dev Called within the creation transaction
-    function initialize(uint256 _tokenId) external {
-        if (_msgSender() != address(autoCompounderFactory)) revert NotFactory();
-        if (tokenId != 0) revert AlreadyInitialized();
-
-        tokenId = _tokenId;
     }
 
     /// @dev Validate timestamp is within the final 24 hours before the epoch flip
@@ -88,7 +55,6 @@ contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, Reentr
         _;
     }
 
-    /// @dev Keep amountTokenEarned for the epoch synced based on the balance before and after operations
     modifier onlyFirstDayOfEpoch(bool _yes) {
         uint256 timestamp = block.timestamp;
         uint256 firstDayEnd = timestamp - (timestamp % WEEK) + 1 days;
@@ -107,10 +73,11 @@ contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, Reentr
         _;
     }
 
+    /// @dev Keep amountTokenEarned for the epoch synced based on the balance before and after operations
     modifier syncAmountEarned() {
-        uint256 balBefore = ve.balanceOfNFT(tokenId);
+        uint256 balBefore = ve.balanceOfNFT(mTokenId);
         _;
-        uint256 balAfter = ve.balanceOfNFT(tokenId);
+        uint256 balAfter = ve.balanceOfNFT(mTokenId);
         if (balBefore < balAfter) {
             amountTokenEarned[VelodromeTimeLibrary.epochStart(block.timestamp)] += balAfter - balBefore;
         }
@@ -121,123 +88,98 @@ contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, Reentr
     // -------------------------------------------------
 
     /// @inheritdoc IAutoCompounder
-    function claimBribesAndCompound(
-        address[] calldata _bribes,
-        address[][] calldata _tokens,
-        address[] calldata _tokensToSwap,
-        uint256[] calldata _slippages
-    ) external {
-        IRouter.Route[][] memory optionalRoutes = new IRouter.Route[][](_tokensToSwap.length);
-        claimBribesAndCompound(_bribes, _tokens, _tokensToSwap, optionalRoutes, _slippages);
+    function swapTokenToVELO(address _tokenToSwap, uint256 _slippage) external {
+        IRouter.Route[] memory optionalRoute = new IRouter.Route[](0);
+        swapTokenToVELOWithOptionalRoute(_tokenToSwap, _slippage, optionalRoute);
     }
 
     /// @inheritdoc IAutoCompounder
-    function claimBribesAndCompound(
-        address[] memory _bribes,
-        address[][] memory _tokens,
-        address[] memory _tokensToSwap,
-        IRouter.Route[][] memory _optionalRoutes,
-        uint256[] memory _slippages
+    function swapTokenToVELOWithOptionalRoute(
+        address _token,
+        uint256 _slippage,
+        IRouter.Route[] memory _optionalRoute
     ) public onlyLastDayOfEpoch {
-        voter.claimBribes(_bribes, _tokens, tokenId);
-        swapTokensToVELOAndCompound(_tokensToSwap, _optionalRoutes, _slippages);
-    }
+        if (_slippage > MAX_SLIPPAGE) revert SlippageTooHigh();
+        if (_token == address(velo)) revert InvalidPath(); // TODO: add check as old version only continues the next loop
+        uint256 balance = IERC20(_token).balanceOf(address(this));
+        if (balance == 0) revert AmountInZero();
 
-    /// @inheritdoc IAutoCompounder
-    function claimFeesAndCompound(
-        address[] calldata _fees,
-        address[][] calldata _tokens,
-        address[] calldata _tokensToSwap,
-        uint256[] calldata _slippages
-    ) external {
-        IRouter.Route[][] memory optionalRoutes = new IRouter.Route[][](_tokensToSwap.length);
-        claimFeesAndCompound(_fees, _tokens, _tokensToSwap, optionalRoutes, _slippages);
-    }
+        IRouter.Route[] memory routes = optimizer.getOptimalTokenToVeloRoute(_token, balance);
+        uint256 amountOutMin = optimizer.getOptimalAmountOutMin(routes, balance, POINTS, _slippage);
 
-    /// @inheritdoc IAutoCompounder
-    function claimFeesAndCompound(
-        address[] memory _fees,
-        address[][] memory _tokens,
-        address[] memory _tokensToSwap,
-        IRouter.Route[][] memory _optionalRoutes,
-        uint256[] memory _slippages
-    ) public onlyLastDayOfEpoch {
-        voter.claimFees(_fees, _tokens, tokenId);
-        swapTokensToVELOAndCompound(_tokensToSwap, _optionalRoutes, _slippages);
-    }
-
-    /// @inheritdoc IAutoCompounder
-    function swapTokensToVELOAndCompound(address[] calldata _tokensToSwap, uint256[] calldata _slippages) external {
-        IRouter.Route[][] memory optionalRoutes = new IRouter.Route[][](_tokensToSwap.length);
-        swapTokensToVELOAndCompound(_tokensToSwap, optionalRoutes, _slippages);
-    }
-
-    /// @inheritdoc IAutoCompounder
-    function swapTokensToVELOAndCompound(
-        address[] memory _tokensToSwap,
-        IRouter.Route[][] memory _optionalRoutes,
-        uint256[] memory _slippages
-    ) public nonReentrant onlyLastDayOfEpoch {
-        uint256 length = _tokensToSwap.length;
-        if (length != _optionalRoutes.length || length != _slippages.length) revert UnequalLengths();
-
-        for (uint256 i = 0; i < _tokensToSwap.length; i++) {
-            uint256 slippage = _slippages[i];
-            if (slippage > MAX_SLIPPAGE) revert SlippageTooHigh();
-            address token = _tokensToSwap[i];
-            if (token == address(velo)) continue; // Do not need to swap from velo => velo
-            uint256 balance = IERC20(token).balanceOf(address(this));
-            if (balance == 0) revert AmountInZero();
-
-            IRouter.Route[] memory routes = optimizer.getOptimalTokenToVeloRoute(token, balance);
-            uint256 amountOutMin = optimizer.getOptimalAmountOutMin(routes, balance, POINTS, slippage);
-
-            // If an optional route was provided, compare the amountOut with the hardcoded optimizer amountOut to determine which
-            // route has a better rate
-            // Used if optional route is not direct token => VELO as this route is already calculated by CompoundOptimizer
-            IRouter.Route[] memory optionalRoutes = _optionalRoutes[i];
-            uint256 optionalRoutesLen = optionalRoutes.length;
-            if (optionalRoutesLen > 1) {
-                if (optionalRoutes[0].from != token) revert InvalidPath();
-                if (optionalRoutes[optionalRoutesLen - 1].to != address(velo)) revert InvalidPath();
-                // Ensure route only uses high liquidity tokens
-                for (uint256 x = 1; x < optionalRoutesLen; x++) {
-                    if (!autoCompounderFactory.isHighLiquidityToken(optionalRoutes[x].from))
-                        revert NotHighLiquidityToken();
-                }
-
-                uint256 optionalAmountOutMin = optimizer.getOptimalAmountOutMin(
-                    optionalRoutes,
-                    balance,
-                    POINTS,
-                    slippage
-                );
-                if (optionalAmountOutMin > amountOutMin) {
-                    routes = optionalRoutes;
-                    amountOutMin = optionalAmountOutMin;
-                }
+        // If an optional route was provided, compare the amountOut with the hardcoded optimizer amountOut to determine which
+        // route has a better rate
+        // Used if optional route is not direct _token => VELO as this route is already calculated by CompoundOptimizer
+        uint256 optionalRouteLen = _optionalRoute.length;
+        if (optionalRouteLen > 1) {
+            if (_optionalRoute[0].from != _token) revert InvalidPath();
+            if (_optionalRoute[optionalRouteLen - 1].to != address(velo)) revert InvalidPath();
+            // Ensure route only uses high liquidity tokens
+            for (uint256 x = 1; x < optionalRouteLen; x++) {
+                if (!autoCompounderFactory.isHighLiquidityToken(_optionalRoute[x].from)) revert NotHighLiquidityToken();
             }
-            if (amountOutMin == 0) revert NoRouteFound();
 
-            // swap
-            _handleRouterApproval(IERC20(token), balance);
-            uint256[] memory amountsOut = router.swapExactTokensForTokens(
-                balance,
-                amountOutMin,
-                routes,
-                address(this),
-                block.timestamp
-            );
-
-            emit SwapTokenToVELO(_msgSender(), token, balance, amountsOut[amountsOut.length - 1], routes);
+            uint256 optionalAmountOutMin = optimizer.getOptimalAmountOutMin(_optionalRoute, balance, POINTS, _slippage);
+            if (optionalAmountOutMin > amountOutMin) {
+                routes = _optionalRoute;
+                amountOutMin = optionalAmountOutMin;
+            }
         }
-        _rewardAndCompound();
+        if (amountOutMin == 0) revert NoRouteFound();
+
+        // swap
+        _handleApproval(IERC20(_token), address(router), balance);
+        uint256[] memory amountsOut = router.swapExactTokensForTokens(
+            balance,
+            amountOutMin,
+            routes,
+            address(this),
+            block.timestamp
+        );
+
+        emit SwapTokenToVELO(_msgSender(), _token, balance, amountsOut[amountsOut.length - 1], routes);
+    }
+
+    /// @inheritdoc IAutoCompounder
+    function rewardAndCompound() external onlyLastDayOfEpoch {
+        address sender = _msgSender();
+        uint256 balance = velo.balanceOf(address(this));
+        uint256 reward;
+
+        if (balance > 0) {
+            // reward the caller the minimum of:
+            // - 1% of the VELO designated for compounding (Rounds down)
+            // - The constant VELO reward set by team in AutoCompounderFactory
+            uint256 compoundRewardAmount = balance / 100;
+            uint256 factoryRewardAmount = autoCompounderFactory.rewardAmount();
+            reward = compoundRewardAmount < factoryRewardAmount ? compoundRewardAmount : factoryRewardAmount;
+
+            if (reward > 0) {
+                velo.transfer(sender, reward);
+            }
+            emit Reward(sender, reward);
+        }
+        compound();
+    }
+
+    /// @inheritdoc IAutoCompounder
+    function compound() public syncAmountEarned {
+        _handleRebase();
+
+        uint256 balance = velo.balanceOf(address(this));
+        if (balance > 0) {
+            // Deposit the remaining balance into the nft
+            _handleApproval(velo, address(ve), balance);
+            ve.increaseAmount(mTokenId, balance);
+            emit Compound(balance);
+        }
     }
 
     // -------------------------------------------------
     // DEFAULT_ADMIN_ROLE functions
     // -------------------------------------------------
 
+    /// @inheritdoc IAutoCompounder
     function setName(string calldata _name) external onlyRole(DEFAULT_ADMIN_ROLE) {
         string memory oldName = name;
         name = _name;
@@ -245,36 +187,10 @@ contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, Reentr
     }
 
     /// @inheritdoc IAutoCompounder
-    function claimBribesAndSweep(
-        address[] calldata _bribes,
-        address[][] calldata _tokens,
-        address[] calldata _tokensToSweep,
-        address[] calldata _recipients
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) onlyFirstDayOfEpoch(true) nonReentrant {
-        voter.claimBribes(_bribes, _tokens, tokenId);
-        _sweep(_tokensToSweep, _recipients);
-    }
-
-    /// @inheritdoc IAutoCompounder
-    function claimFeesAndSweep(
-        address[] calldata _fees,
-        address[][] calldata _tokens,
-        address[] calldata _tokensToSweep,
-        address[] calldata _recipients
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) onlyFirstDayOfEpoch(true) nonReentrant {
-        voter.claimFees(_fees, _tokens, tokenId);
-        _sweep(_tokensToSweep, _recipients);
-    }
-
-    /// @inheritdoc IAutoCompounder
     function sweep(
         address[] calldata _tokensToSweep,
         address[] calldata _recipients
     ) external onlyRole(DEFAULT_ADMIN_ROLE) onlyFirstDayOfEpoch(true) nonReentrant {
-        _sweep(_tokensToSweep, _recipients);
-    }
-
-    function _sweep(address[] memory _tokensToSweep, address[] memory _recipients) internal {
         uint256 length = _tokensToSweep.length;
         if (length != _recipients.length) revert UnequalLengths();
         for (uint256 i = 0; i < length; i++) {
@@ -291,123 +207,33 @@ contract AutoCompounder is IAutoCompounder, ERC721Holder, ERC2771Context, Reentr
     }
 
     // -------------------------------------------------
-    // ALLOWED_CALLER functions
-    // -------------------------------------------------
-
-    /// @inheritdoc IAutoCompounder
-    function increaseAmount(uint256 _value) external onlyRole(ALLOWED_CALLER) {
-        velo.transferFrom(_msgSender(), address(this), _value);
-        ve.increaseAmount(tokenId, _value);
-    }
-
-    /// @inheritdoc IAutoCompounder
-    function vote(address[] calldata _poolVote, uint256[] calldata _weights) external onlyRole(ALLOWED_CALLER) {
-        voter.vote(tokenId, _poolVote, _weights);
-    }
-
-    // -------------------------------------------------
     // Keeper functions
     // -------------------------------------------------
 
     /// @inheritdoc IAutoCompounder
-    function claimAndCompoundKeeper(
-        address[] memory _bribes,
-        address[][] memory _bribesTokens,
-        address[] memory _fees,
-        address[][] memory _feesTokens,
-        IRouter.Route[][] calldata _allRoutes,
-        uint256[] calldata _amountsIn,
-        uint256[] calldata _amountsOutMin
+    function swapTokenToVELOKeeper(
+        IRouter.Route[] calldata _routes,
+        uint256 _amountIn,
+        uint256 _amountOutMin
     ) external onlyKeeper(msg.sender) onlyFirstDayOfEpoch(false) nonReentrant {
-        if (_allRoutes.length != _amountsIn.length || _allRoutes.length != _amountsOutMin.length)
-            revert UnequalLengths();
-        voter.claimBribes(_bribes, _bribesTokens, tokenId);
-        voter.claimFees(_fees, _feesTokens, tokenId);
-        for (uint256 i = 0; i < _allRoutes.length; i++) {
-            _swapTokenToVELOKeeper(_allRoutes[i], _amountsIn[i], _amountsOutMin[i]);
-        }
-        _rewardAndCompound();
-    }
-
-    function _swapTokenToVELOKeeper(IRouter.Route[] memory routes, uint256 amountIn, uint256 amountOutMin) internal {
-        if (amountIn == 0) revert AmountInZero();
-        if (amountOutMin == 0) revert SlippageTooHigh();
-        if (routes[routes.length - 1].to != address(velo)) revert InvalidPath();
-        address from = routes[0].from;
+        if (_amountIn == 0) revert AmountInZero();
+        if (_amountOutMin == 0) revert SlippageTooHigh();
+        if (_routes.length < 1 || _routes[_routes.length - 1].to != address(velo)) revert InvalidPath();
+        address from = _routes[0].from;
         if (from == address(velo)) revert InvalidPath();
 
         uint256 balance = IERC20(from).balanceOf(address(this));
-        if (amountIn > balance) revert AmountInTooHigh();
+        if (_amountIn > balance) revert AmountInTooHigh();
 
-        _handleRouterApproval(IERC20(from), amountIn);
+        _handleApproval(IERC20(from), address(router), _amountIn);
         uint256[] memory amountsOut = router.swapExactTokensForTokens(
-            amountIn,
-            amountOutMin,
-            routes,
+            _amountIn,
+            _amountOutMin,
+            _routes,
             address(this),
             block.timestamp
         );
 
-        emit SwapTokenToVELOKeeper(_msgSender(), from, amountIn, amountsOut[amountsOut.length - 1], routes);
-    }
-
-    // -------------------------------------------------
-    // Helpers
-    // -------------------------------------------------
-
-    /// @dev Claim any rebase by the RewardsDistributor, reward the caller if publicly called, and deposit VELO
-    ///          into the managed veNFT.
-    function _rewardAndCompound() internal syncAmountEarned {
-        address sender = _msgSender();
-        bool isCalledByKeeper = autoCompounderFactory.isKeeper(sender);
-        uint256 balance = velo.balanceOf(address(this));
-        uint256 _tokenId = tokenId;
-        uint256 reward;
-
-        // claim rebase if possible
-        if (distributor.claimable(_tokenId) > 0) {
-            distributor.claim(_tokenId);
-        }
-
-        if (balance > 0) {
-            // reward callers if they are not a keeper
-            if (!isCalledByKeeper) {
-                // reward the caller the minimum of:
-                // - 1% of the VELO designated for compounding (Rounds down)
-                // - The constant VELO reward set by team in AutoCompounderFactory
-                uint256 compoundRewardAmount = balance / 100;
-                uint256 factoryRewardAmount = autoCompounderFactory.rewardAmount();
-                reward = compoundRewardAmount < factoryRewardAmount ? compoundRewardAmount : factoryRewardAmount;
-
-                if (reward > 0) {
-                    velo.transfer(sender, reward);
-                    balance -= reward;
-                }
-            }
-
-            // Deposit the remaining balance into the nft
-            ve.increaseAmount(_tokenId, balance);
-        }
-
-        emit RewardAndCompound(sender, _tokenId, isCalledByKeeper, reward, balance);
-    }
-
-    /// @dev resets approval if needed then approves transfer of tokens to router
-    function _handleRouterApproval(IERC20 token, uint256 amount) internal {
-        uint256 allowance = token.allowance(address(this), address(router));
-        if (allowance > 0) token.safeDecreaseAllowance(address(router), allowance);
-        token.safeIncreaseAllowance(address(router), amount);
-    }
-
-    // -------------------------------------------------
-    // Overrides
-    // -------------------------------------------------
-
-    function _msgData() internal view override(ERC2771Context, Context) returns (bytes calldata) {
-        return ERC2771Context._msgData();
-    }
-
-    function _msgSender() internal view override(ERC2771Context, Context) returns (address) {
-        return ERC2771Context._msgSender();
+        emit SwapTokenToVELOKeeper(_msgSender(), from, _amountIn, amountsOut[amountsOut.length - 1], _routes);
     }
 }

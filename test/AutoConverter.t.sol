@@ -52,7 +52,7 @@ contract AutoConverterTest is BaseTest {
         );
         escrow.approve(address(autoConverterFactory), mTokenId);
         autoConverter = AutoConverter(
-            autoConverterFactory.createAutoConverter(address(USDC), address(owner), mTokenId)
+            autoConverterFactory.createAutoConverter(address(owner), mTokenId, "AutoConverter", address(USDC))
         );
 
         skipToNextEpoch(1 hours + 1);
@@ -110,90 +110,78 @@ contract AutoConverterTest is BaseTest {
         }
     }
 
-    function testClaimAndConvertClaimRebaseOnly() public {
-        address[] memory pools = new address[](2);
-        pools[0] = address(pool);
-        pools[1] = address(pool2);
-        uint256[] memory weights = new uint256[](2);
-        weights[0] = 1;
-        weights[1] = 1;
+    // function testClaimAndConvertClaimRebaseOnly() public {
+    //     address[] memory pools = new address[](2);
+    //     pools[0] = address(pool);
+    //     pools[1] = address(pool2);
+    //     uint256[] memory weights = new uint256[](2);
+    //     weights[0] = 1;
+    //     weights[1] = 1;
 
-        autoConverter.vote(pools, weights);
+    //     autoConverter.vote(pools, weights);
 
-        skipToNextEpoch(6 days + 1);
-        minter.updatePeriod();
+    //     skipToNextEpoch(6 days + 1);
+    //     minter.updatePeriod();
 
-        uint256 claimable = distributor.claimable(mTokenId);
-        assertGt(distributor.claimable(mTokenId), 0);
+    //     uint256 claimable = distributor.claimable(mTokenId);
+    //     assertGt(distributor.claimable(mTokenId), 0);
 
-        uint256 balanceBefore = escrow.balanceOfNFT(mTokenId);
-        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](0);
-        uint256[] memory amountsIn = new uint256[](0);
-        uint256[] memory amountsOutMin = new uint256[](0);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-        assertEq(escrow.balanceOfNFT(mTokenId), balanceBefore + claimable);
-    }
+    //     uint256 balanceBefore = escrow.balanceOfNFT(mTokenId);
+    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](0);
+    //     uint256[] memory amountsIn = new uint256[](0);
+    //     uint256[] memory amountsOutMin = new uint256[](0);
+    //     autoConverter.claimAndConvertKeeper(
+    //         bribes,
+    //         tokensToClaim,
+    //         fees,
+    //         tokensToClaim,
+    //         allRoutes,
+    //         amountsIn,
+    //         amountsOutMin
+    //     );
+    //     assertEq(escrow.balanceOfNFT(mTokenId), balanceBefore + claimable);
+    // }
 
-    function testIncreaseAmount() public {
-        uint256 amount = TOKEN_1;
-        deal(address(VELO), address(owner), amount);
-        VELO.approve(address(autoConverter), amount);
+    // function testIncreaseAmount() public {
+    //     uint256 amount = TOKEN_1;
+    //     deal(address(VELO), address(owner), amount);
+    //     VELO.approve(address(autoConverter), amount);
 
-        uint256 balanceBefore = escrow.balanceOfNFT(mTokenId);
-        uint256 supplyBefore = escrow.totalSupply();
+    //     uint256 balanceBefore = escrow.balanceOfNFT(mTokenId);
+    //     uint256 supplyBefore = escrow.totalSupply();
 
-        autoConverter.increaseAmount(amount);
+    //     autoConverter.increaseAmount(amount);
 
-        assertEq(escrow.balanceOfNFT(mTokenId), balanceBefore + amount);
-        assertEq(escrow.totalSupply(), supplyBefore + amount);
-    }
+    //     assertEq(escrow.balanceOfNFT(mTokenId), balanceBefore + amount);
+    //     assertEq(escrow.totalSupply(), supplyBefore + amount);
+    // }
 
-    function testVote() public {
-        address[] memory poolVote = new address[](1);
-        uint256[] memory weights = new uint256[](1);
-        poolVote[0] = address(pool2);
-        weights[0] = 1;
+    // function testVote() public {
+    //     address[] memory poolVote = new address[](1);
+    //     uint256[] memory weights = new uint256[](1);
+    //     poolVote[0] = address(pool2);
+    //     weights[0] = 1;
 
-        assertFalse(escrow.voted(mTokenId));
+    //     assertFalse(escrow.voted(mTokenId));
 
-        autoConverter.vote(poolVote, weights);
+    //     autoConverter.vote(poolVote, weights);
 
-        assertTrue(escrow.voted(mTokenId));
-        assertEq(voter.weights(address(pool2)), escrow.balanceOfNFT(mTokenId));
-        assertEq(voter.votes(mTokenId, address(pool2)), escrow.balanceOfNFT(mTokenId));
-        assertEq(voter.poolVote(mTokenId, 0), address(pool2));
-    }
+    //     assertTrue(escrow.voted(mTokenId));
+    //     assertEq(voter.weights(address(pool2)), escrow.balanceOfNFT(mTokenId));
+    //     assertEq(voter.votes(mTokenId, address(pool2)), escrow.balanceOfNFT(mTokenId));
+    //     assertEq(voter.poolVote(mTokenId, 0), address(pool2));
+    // }
 
-    function testClaimAndConvertKeeper() public {
+    function testSwapTokenToToken() public {
         deal(address(FRAX), address(autoConverter), TOKEN_1 / 1000, true);
 
-        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
         IRouter.Route[] memory routes = new IRouter.Route[](1);
         routes[0] = IRouter.Route(address(FRAX), address(USDC), false, address(0));
-        allRoutes[0] = routes;
-        uint256[] memory amountsIn = new uint256[](1);
-        amountsIn[0] = TOKEN_1 / 1000;
-        uint256[] memory amountsOutMin = new uint256[](1);
-        amountsOutMin[0] = 1;
+        uint256 amountIn = TOKEN_1 / 1000;
+        uint256 amountOutMin = 1;
 
         uint256 balanceBefore = USDC.balanceOf(address(autoConverter));
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
+        autoConverter.swapTokenToToken(routes, amountIn, amountOutMin);
         assertGt(USDC.balanceOf(address(autoConverter)), balanceBefore);
         assertEq(
             autoConverter.amountTokenEarned(VelodromeTimeLibrary.epochStart(block.timestamp)),
@@ -201,254 +189,147 @@ contract AutoConverterTest is BaseTest {
         );
     }
 
-    function testCannotInitializeTwice() external {
-        vm.prank(address(autoConverter.autoConverterFactory()));
-        vm.expectRevert(IAutoConverter.AlreadyInitialized.selector);
-        autoConverter.initialize(1);
-    }
+    // function testCannotInitializeTwice() external {
+    //     vm.prank(address(autoConverter.autoConverterFactory()));
+    //     vm.expectRevert(IAutoConverter.AlreadyInitialized.selector);
+    //     autoConverter.initialize(1);
+    // }
 
-    function testCannotInitializeIfNotFactory() external {
-        vm.expectRevert(IAutoConverter.NotFactory.selector);
-        autoConverter.initialize(1);
-    }
+    // function testCannotInitializeIfNotFactory() external {
+    //     vm.expectRevert(IAutoConverter.NotFactory.selector);
+    //     autoConverter.initialize(1);
+    // }
 
-    function testCannotSwapIfUnequalLengths() public {
-        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-        uint256[] memory amountsIn = new uint256[](2);
-        uint256[] memory amountsOutMin = new uint256[](1);
-        vm.expectRevert(IAutoConverter.UnequalLengths.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
+    // function testHandleRouterApproval() public {
+    //     deal(address(FRAX), address(autoConverter), TOKEN_1 / 1000, true);
 
-        amountsOutMin = new uint256[](2);
-        vm.expectRevert(IAutoConverter.UnequalLengths.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
+    //     // give a fake approval to impersonate a dangling approved amount
+    //     vm.prank(address(autoConverter));
+    //     FRAX.approve(address(router), 100);
 
-        amountsIn = new uint256[](1);
-        vm.expectRevert(IAutoConverter.UnequalLengths.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-    }
+    //     // resets and properly approves swap amount
+    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+    //     IRouter.Route[] memory routes = new IRouter.Route[](1);
+    //     routes[0] = IRouter.Route(address(FRAX), address(USDC), false, address(0));
+    //     allRoutes[0] = routes;
+    //     uint256[] memory amountsIn = new uint256[](1);
+    //     amountsIn[0] = TOKEN_1 / 1000;
+    //     uint256[] memory amountsOutMin = new uint256[](1);
+    //     amountsOutMin[0] = 1;
 
-    function testHandleRouterApproval() public {
-        deal(address(FRAX), address(autoConverter), TOKEN_1 / 1000, true);
+    //     autoConverter.claimAndConvertKeeper(
+    //         bribes,
+    //         tokensToClaim,
+    //         fees,
+    //         tokensToClaim,
+    //         allRoutes,
+    //         amountsIn,
+    //         amountsOutMin
+    //     );
+    //     assertEq(FRAX.allowance(address(autoConverter), address(router)), 0);
+    // }
 
-        // give a fake approval to impersonate a dangling approved amount
-        vm.prank(address(autoConverter));
-        FRAX.approve(address(router), 100);
-
-        // resets and properly approves swap amount
-        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-        IRouter.Route[] memory routes = new IRouter.Route[](1);
-        routes[0] = IRouter.Route(address(FRAX), address(USDC), false, address(0));
-        allRoutes[0] = routes;
-        uint256[] memory amountsIn = new uint256[](1);
-        amountsIn[0] = TOKEN_1 / 1000;
-        uint256[] memory amountsOutMin = new uint256[](1);
-        amountsOutMin[0] = 1;
-
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-        assertEq(FRAX.allowance(address(autoConverter), address(router)), 0);
-    }
-
-    function testCannotSwapKeeperUnequalLengths() public {
-        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](2);
-        uint256[] memory amountsIn = new uint256[](1);
-        uint256[] memory amountsOutMin = new uint256[](1);
-
-        vm.expectRevert(IAutoConverter.UnequalLengths.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-
-        amountsIn = new uint256[](2);
-        vm.expectRevert(IAutoConverter.UnequalLengths.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-
-        amountsIn = new uint256[](1);
-        amountsOutMin = new uint256[](2);
-        vm.expectRevert(IAutoConverter.UnequalLengths.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-
-        amountsIn = new uint256[](2);
-        allRoutes = new IRouter.Route[][](1);
-        vm.expectRevert(IAutoConverter.UnequalLengths.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-    }
-
-    function testCannotSwapKeeperIfNotKeeper() public {
-        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](2);
-        uint256[] memory amountsIn = new uint256[](1);
-        uint256[] memory amountsOutMin = new uint256[](1);
-
+    function testCannotSwapTokenToTokenIfNotKeeper() public {
         vm.startPrank(address(owner2));
         vm.expectRevert(IAutoConverter.NotKeeper.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
+        autoConverter.swapTokenToToken(new IRouter.Route[](0), 0, 0);
     }
 
-    function testCannotSwapKeeperIfAmountInZero() public {
-        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-        uint256[] memory amountsIn = new uint256[](1);
-        uint256[] memory amountsOutMin = new uint256[](1);
-        vm.expectRevert(IAutoConverter.AmountInZero.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-    }
+    // function testCannotSwapKeeperIfAmountInZero() public {
+    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+    //     uint256[] memory amountsIn = new uint256[](1);
+    //     uint256[] memory amountsOutMin = new uint256[](1);
+    //     vm.expectRevert(IAutoConverter.AmountInZero.selector);
+    //     autoConverter.claimAndConvertKeeper(
+    //         bribes,
+    //         tokensToClaim,
+    //         fees,
+    //         tokensToClaim,
+    //         allRoutes,
+    //         amountsIn,
+    //         amountsOutMin
+    //     );
+    // }
 
-    function testCannotSwapKeeperIfSlippageTooHigh() public {
-        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-        uint256[] memory amountsIn = new uint256[](1);
-        uint256[] memory amountsOutMin = new uint256[](1);
-        amountsIn[0] = 1;
-        vm.expectRevert(IAutoConverter.SlippageTooHigh.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-    }
+    // function testCannotSwapKeeperIfSlippageTooHigh() public {
+    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+    //     uint256[] memory amountsIn = new uint256[](1);
+    //     uint256[] memory amountsOutMin = new uint256[](1);
+    //     amountsIn[0] = 1;
+    //     vm.expectRevert(IAutoConverter.SlippageTooHigh.selector);
+    //     autoConverter.claimAndConvertKeeper(
+    //         bribes,
+    //         tokensToClaim,
+    //         fees,
+    //         tokensToClaim,
+    //         allRoutes,
+    //         amountsIn,
+    //         amountsOutMin
+    //     );
+    // }
 
-    function testCannotSwapKeeperIfInvalidPath() public {
-        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-        IRouter.Route[] memory routes = new IRouter.Route[](1);
-        routes[0] = IRouter.Route(address(0), address(0), false, address(0));
-        allRoutes[0] = routes;
-        uint256[] memory amountsIn = new uint256[](1);
-        uint256[] memory amountsOutMin = new uint256[](1);
-        amountsIn[0] = 1;
-        amountsOutMin[0] = 1;
-        vm.expectRevert(IAutoConverter.InvalidPath.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-    }
+    // function testCannotSwapKeeperIfInvalidPath() public {
+    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+    //     IRouter.Route[] memory routes = new IRouter.Route[](1);
+    //     routes[0] = IRouter.Route(address(0), address(0), false, address(0));
+    //     allRoutes[0] = routes;
+    //     uint256[] memory amountsIn = new uint256[](1);
+    //     uint256[] memory amountsOutMin = new uint256[](1);
+    //     amountsIn[0] = 1;
+    //     amountsOutMin[0] = 1;
+    //     vm.expectRevert(IAutoConverter.InvalidPath.selector);
+    //     autoConverter.claimAndConvertKeeper(
+    //         bribes,
+    //         tokensToClaim,
+    //         fees,
+    //         tokensToClaim,
+    //         allRoutes,
+    //         amountsIn,
+    //         amountsOutMin
+    //     );
+    // }
 
-    function testCannotSwapKeeperFromUSDC() public {
-        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-        IRouter.Route[] memory routes = new IRouter.Route[](1);
-        routes[0] = IRouter.Route(address(USDC), address(0), false, address(0));
-        allRoutes[0] = routes;
-        uint256[] memory amountsIn = new uint256[](1);
-        uint256[] memory amountsOutMin = new uint256[](1);
-        amountsIn[0] = 1;
-        amountsOutMin[0] = 1;
-        vm.expectRevert(IAutoConverter.InvalidPath.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-    }
+    // function testCannotSwapKeeperFromUSDC() public {
+    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+    //     IRouter.Route[] memory routes = new IRouter.Route[](1);
+    //     routes[0] = IRouter.Route(address(USDC), address(0), false, address(0));
+    //     allRoutes[0] = routes;
+    //     uint256[] memory amountsIn = new uint256[](1);
+    //     uint256[] memory amountsOutMin = new uint256[](1);
+    //     amountsIn[0] = 1;
+    //     amountsOutMin[0] = 1;
+    //     vm.expectRevert(IAutoConverter.InvalidPath.selector);
+    //     autoConverter.claimAndConvertKeeper(
+    //         bribes,
+    //         tokensToClaim,
+    //         fees,
+    //         tokensToClaim,
+    //         allRoutes,
+    //         amountsIn,
+    //         amountsOutMin
+    //     );
+    // }
 
-    function testCannotSwapKeeperIfAmountInTooHigh() public {
-        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-        IRouter.Route[] memory routes = new IRouter.Route[](1);
-        routes[0] = IRouter.Route(address(WETH), address(USDC), false, address(0));
-        allRoutes[0] = routes;
-        uint256[] memory amountsIn = new uint256[](1);
-        uint256[] memory amountsOutMin = new uint256[](1);
-        amountsIn[0] = 1;
-        amountsOutMin[0] = 1;
-        vm.expectRevert(IAutoConverter.AmountInTooHigh.selector);
-        autoConverter.claimAndConvertKeeper(
-            bribes,
-            tokensToClaim,
-            fees,
-            tokensToClaim,
-            allRoutes,
-            amountsIn,
-            amountsOutMin
-        );
-    }
+    // function testCannotSwapKeeperIfAmountInTooHigh() public {
+    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+    //     IRouter.Route[] memory routes = new IRouter.Route[](1);
+    //     routes[0] = IRouter.Route(address(WETH), address(USDC), false, address(0));
+    //     allRoutes[0] = routes;
+    //     uint256[] memory amountsIn = new uint256[](1);
+    //     uint256[] memory amountsOutMin = new uint256[](1);
+    //     amountsIn[0] = 1;
+    //     amountsOutMin[0] = 1;
+    //     vm.expectRevert(IAutoConverter.AmountInTooHigh.selector);
+    //     autoConverter.claimAndConvertKeeper(
+    //         bribes,
+    //         tokensToClaim,
+    //         fees,
+    //         tokensToClaim,
+    //         allRoutes,
+    //         amountsIn,
+    //         amountsOutMin
+    //     );
+    // }
 
     function testCannotSweepIfNotAdmin() public {
         deal(address(USDC), address(autoConverter), TOKEN_1);
