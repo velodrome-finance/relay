@@ -19,9 +19,6 @@ interface IAutoConverter {
         IRouter.Route[] routes
     );
 
-    /// @notice Address of token used to convert into
-    function token() external view returns (address);
-
     // -------------------------------------------------
     // DEFAULT_ADMIN_ROLE functions
     // -------------------------------------------------

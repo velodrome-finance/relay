@@ -9,11 +9,14 @@ interface IRelay {
     /// @notice Error during initialize() if the (m)tokenID is not owned by the Relay
     error ManagedTokenNotOwned();
 
-    /// @notice Get the name of the autoCompounder
+    /// @notice Get the name of the Relay
     function name() external view returns (string memory);
 
-    /// @notice Get the Managed veNFT tokenId owned by the autoCompounder
+    /// @notice Get the Managed veNFT tokenId owned by the Relay
     function mTokenId() external view returns (uint256); // TODO: unit test
+
+    /// @notice Address of token to convert into
+    function token() external view returns (address);
 
     /// @notice Initialize the Relay by setting the (m)tokenId within the contract
     /// @dev The (m)tokenId must be owned by the Relay to initialize
@@ -38,7 +41,7 @@ interface IRelay {
     // -------------------------------------------------
 
     /// @notice Additional functionality for ALLOWED_CALLER to deposit more VELO into the managed tokenId.
-    ///         This is effectively a bribe bonus for users that deposited into the autocompounder.
+    ///         This is effectively a bribe bonus for users that deposited into the Relay.
     /// @dev Refer to IVoter.increaseAmount()
     function increaseAmount(uint256 _value) external;
 

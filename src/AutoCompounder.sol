@@ -175,6 +175,10 @@ contract AutoCompounder is IAutoCompounder, Relay {
         }
     }
 
+    function token() external view override returns (address) {
+        return address(velo);
+    }
+
     // -------------------------------------------------
     // DEFAULT_ADMIN_ROLE functions
     // -------------------------------------------------
@@ -194,14 +198,14 @@ contract AutoCompounder is IAutoCompounder, Relay {
         uint256 length = _tokensToSweep.length;
         if (length != _recipients.length) revert UnequalLengths();
         for (uint256 i = 0; i < length; i++) {
-            address token = _tokensToSweep[i];
-            if (autoCompounderFactory.isHighLiquidityToken(token)) revert HighLiquidityToken();
+            address tokenToSweep = _tokensToSweep[i];
+            if (autoCompounderFactory.isHighLiquidityToken(tokenToSweep)) revert HighLiquidityToken();
             address recipient = _recipients[i];
             if (recipient == address(0)) revert ZeroAddress();
-            uint256 balance = IERC20(token).balanceOf(address(this));
+            uint256 balance = IERC20(tokenToSweep).balanceOf(address(this));
             if (balance > 0) {
-                IERC20(token).safeTransfer(recipient, balance);
-                emit Sweep(token, msg.sender, recipient, balance);
+                IERC20(tokenToSweep).safeTransfer(recipient, balance);
+                emit Sweep(tokenToSweep, msg.sender, recipient, balance);
             }
         }
     }
