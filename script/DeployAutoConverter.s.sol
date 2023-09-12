@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
+import {Registry} from "src/Registry.sol";
 import {AutoConverter} from "src/autoConverter/AutoConverter.sol";
 import {AutoConverterFactory} from "src/autoConverter/AutoConverterFactory.sol";
 
@@ -17,6 +18,8 @@ contract DeployAutoConverter is Script {
 
     AutoConverter public autoConverter;
     AutoConverterFactory public autoConverterFactory;
+    Registry public keeperRegistry;
+    Registry public relayFactoryRegistry;
     string public jsonConstants;
     string public jsonOutput;
 
@@ -31,15 +34,21 @@ contract DeployAutoConverter is Script {
         // AutoConverterFactory-specific
         address forwarder = abi.decode(jsonConstants.parseRaw(".v2.Forwarder"), (address));
         address voter = abi.decode(jsonConstants.parseRaw(".v2.Voter"), (address));
-        address factoryRegistry = abi.decode(jsonConstants.parseRaw(".v2.FactoryRegistry"), (address));
 
         vm.startBroadcast(deployerAddress);
 
-        autoConverterFactory = new AutoConverterFactory(forwarder, voter, router, factoryRegistry);
+        path = string.concat(basePath, "output/");
+        path = string.concat(path, outputFilename);
+        jsonOutput = vm.readFile(path);
+        relayFactoryRegistry = Registry(abi.decode(jsonOutput.parseRaw(".RelayFactoryRegistry"), (address)));
+        keeperRegistry = Registry(abi.decode(jsonOutput.parseRaw(".KeeperRegistry"), (address)));
+
+        autoConverterFactory = new AutoConverterFactory(forwarder, voter, router, address(keeperRegistry));
+        relayFactoryRegistry.approve(address(autoConverterFactory));
 
         vm.stopBroadcast();
 
-        path = string.concat(basePath, "output/");
+        path = string.concat(basePath, "output/DeployAutoConverter-");
         path = string.concat(path, outputFilename);
         vm.writeJson(vm.serializeAddress("v2", "AutoConverterFactory", address(autoConverterFactory)), path);
     }

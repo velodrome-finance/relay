@@ -5,7 +5,6 @@ import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 
 interface ICompoundOptimizer {
     error NotEnoughPoints();
-    error RouteDoesNotExist();
 
     function usdc() external view returns (address);
 

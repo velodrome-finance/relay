@@ -2,10 +2,10 @@
 pragma solidity 0.8.19;
 
 import {IRelay} from "./interfaces/IRelay.sol";
+import {IRelayFactory} from "./interfaces/IRelayFactory.sol";
 
 import {IVoter} from "@velodrome/contracts/interfaces/IVoter.sol";
 import {IVotingEscrow} from "@velodrome/contracts/interfaces/IVotingEscrow.sol";
-import {IVelo} from "@velodrome/contracts/interfaces/IVelo.sol";
 import {IRewardsDistributor} from "@velodrome/contracts/interfaces/IRewardsDistributor.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -19,6 +19,7 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 
 abstract contract Relay is IRelay, ERC2771Context, ERC721Holder, ReentrancyGuard, AccessControl, Initializable {
     using SafeERC20 for IERC20;
+
     bytes32 public constant ALLOWED_CALLER = keccak256("ALLOWED_CALLER");
 
     uint256 public mTokenId;
@@ -28,11 +29,19 @@ abstract contract Relay is IRelay, ERC2771Context, ERC721Holder, ReentrancyGuard
     IVotingEscrow public immutable ve;
     IERC20 public immutable velo;
     IRewardsDistributor public immutable distributor;
+    IRelayFactory public relayFactory;
 
-    constructor(address _forwarder, address _voter, address _admin, string memory _name) ERC2771Context(_forwarder) {
+    constructor(
+        address _forwarder,
+        address _voter,
+        address _admin,
+        address _relayFactory,
+        string memory _name
+    ) ERC2771Context(_forwarder) {
         voter = IVoter(_voter);
         ve = IVotingEscrow(voter.ve());
         velo = IERC20(ve.token());
+        relayFactory = IRelayFactory(_relayFactory);
         distributor = IRewardsDistributor(ve.distributor());
 
         name = _name;
@@ -46,6 +55,13 @@ abstract contract Relay is IRelay, ERC2771Context, ERC721Holder, ReentrancyGuard
         if (ve.escrowType(_mTokenId) != IVotingEscrow.EscrowType.MANAGED) revert TokenIdNotManaged();
         if (ve.ownerOf(_mTokenId) != address(this)) revert ManagedTokenNotOwned();
         mTokenId = _mTokenId;
+    }
+
+    /// @dev Validate msg.sender is a keeper added by Velodrome team.
+    ///      Can only call permissioned functions 1 day after epoch flip
+    modifier onlyKeeper(address _sender) {
+        if (!relayFactory.isKeeper(_sender)) revert NotKeeper();
+        _;
     }
 
     // -------------------------------------------------

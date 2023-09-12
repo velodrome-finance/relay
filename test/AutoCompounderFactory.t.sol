@@ -19,6 +19,7 @@ contract AutoCompounderFactoryTest is RelayFactoryTest {
     // @dev: refer to velodrome-finance/test/BaseTest.sol
     function _setUp() public override {
         escrow.setTeam(address(owner4));
+        keeperRegistry = new Registry(new address[](0));
         optimizer = new CompoundOptimizer(
             address(USDC),
             address(WETH),
@@ -32,7 +33,7 @@ contract AutoCompounderFactoryTest is RelayFactoryTest {
             address(voter),
             address(router),
             address(optimizer),
-            address(factoryRegistry),
+            address(keeperRegistry),
             new address[](0)
         );
         relayFactory = RelayFactory(autoCompounderFactory);
@@ -47,46 +48,11 @@ contract AutoCompounderFactoryTest is RelayFactoryTest {
             address(voter),
             address(router),
             address(optimizer),
-            address(factoryRegistry),
+            address(keeperRegistry),
             highLiquidityTokens
         );
         assertTrue(autoCompounderFactory.isHighLiquidityToken(address(FRAX)));
         assertTrue(autoCompounderFactory.isHighLiquidityToken(address(USDC)));
-    }
-
-    function testCannotCreateAutoCompounderWithNoAdmin() public {
-        vm.expectRevert(IRelayFactory.ZeroAddress.selector);
-        autoCompounderFactory.createRelay(address(0), 1, "", new bytes(0));
-    }
-
-    function testCannotCreateAutoCompounderWithZeroTokenId() public {
-        vm.expectRevert(IRelayFactory.TokenIdZero.selector);
-        autoCompounderFactory.createRelay(address(1), 0, "", new bytes(0));
-    }
-
-    function testCannotCreateAutoCompounderIfNotApprovedSender() public {
-        vm.prank(escrow.allowedManager());
-        mTokenId = escrow.createManagedLockFor(address(owner));
-        vm.startPrank(address(owner));
-        escrow.approve(address(autoCompounderFactory), mTokenId);
-        escrow.setApprovalForAll(address(autoCompounderFactory), true);
-        vm.stopPrank();
-        vm.expectRevert(IRelayFactory.TokenIdNotApproved.selector);
-        vm.prank(address(owner2));
-        autoCompounderFactory.createRelay(address(1), mTokenId, "", new bytes(0));
-    }
-
-    function testCannotCreateAutoCompounderIfTokenNotManaged() public {
-        VELO.approve(address(escrow), TOKEN_1);
-        tokenId = escrow.createLock(TOKEN_1, MAXTIME);
-        vm.expectRevert(IRelayFactory.TokenIdNotManaged.selector);
-        autoCompounderFactory.createRelay(address(1), tokenId, "", new bytes(0)); // normal
-
-        vm.prank(escrow.allowedManager());
-        mTokenId = escrow.createManagedLockFor(address(owner));
-        voter.depositManaged(tokenId, mTokenId);
-        vm.expectRevert(IRelayFactory.TokenIdNotManaged.selector);
-        autoCompounderFactory.createRelay(address(1), tokenId, "", new bytes(0)); // locked
     }
 
     function testCreateAutoCompounder() public {
@@ -164,21 +130,21 @@ contract AutoCompounderFactoryTest is RelayFactoryTest {
         assertEq(autoCompounder.mTokenId(), mTokenId);
     }
 
-    function testCannotAddHighLiquidityTokenIfNotTeam() public {
+    function testCannotAddHighLiquidityTokenIfNotOwner() public {
         vm.startPrank(address(owner2));
-        assertTrue(msg.sender != factoryRegistry.owner());
-        vm.expectRevert(IRelayFactory.NotTeam.selector);
+        assertTrue(msg.sender != autoCompounderFactory.owner());
+        vm.expectRevert("Ownable: caller is not the owner");
         autoCompounderFactory.addHighLiquidityToken(address(USDC));
     }
 
     function testCannotAddHighLiquidityTokenIfZeroAddress() public {
-        vm.prank(factoryRegistry.owner());
+        vm.prank(autoCompounderFactory.owner());
         vm.expectRevert(IRelayFactory.ZeroAddress.selector);
         autoCompounderFactory.addHighLiquidityToken(address(0));
     }
 
     function testCannotAddHighLiquidityTokenIfAlreadyExists() public {
-        vm.startPrank(factoryRegistry.owner());
+        vm.startPrank(autoCompounderFactory.owner());
         autoCompounderFactory.addHighLiquidityToken(address(USDC));
         vm.expectRevert(IAutoCompounderFactory.HighLiquidityTokenAlreadyExists.selector);
         autoCompounderFactory.addHighLiquidityToken(address(USDC));
@@ -188,7 +154,7 @@ contract AutoCompounderFactoryTest is RelayFactoryTest {
         assertFalse(autoCompounderFactory.isHighLiquidityToken(address(USDC)));
         assertEq(autoCompounderFactory.highLiquidityTokens(), new address[](0));
         assertEq(autoCompounderFactory.highLiquidityTokensLength(), 0);
-        vm.prank(factoryRegistry.owner());
+        vm.prank(autoCompounderFactory.owner());
         autoCompounderFactory.addHighLiquidityToken(address(USDC));
         assertTrue(autoCompounderFactory.isHighLiquidityToken(address(USDC)));
         address[] memory highLiquidityTokens = new address[](1);

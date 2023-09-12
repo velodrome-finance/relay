@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 interface IRelay {
+    /// @notice Error during keeper functions if sender is not Keeper
+    error NotKeeper();
     /// @notice General error if one call in the multicall fails
     error MulticallFailed();
     /// @notice Error during initialize() if the (m)tokenId is not a managed veNFT
@@ -13,7 +15,7 @@ interface IRelay {
     function name() external view returns (string memory);
 
     /// @notice Get the Managed veNFT tokenId owned by the Relay
-    function mTokenId() external view returns (uint256); // TODO: unit test
+    function mTokenId() external view returns (uint256);
 
     /// @notice Address of token to convert into
     function token() external view returns (address);

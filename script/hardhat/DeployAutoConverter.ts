@@ -1,10 +1,11 @@
 import { Contract } from "@ethersproject/contracts";
 import { ethers } from "hardhat";
 import { Libraries } from "hardhat/types";
+import jsonOutput from "../constants/output/Tenderly.json";
 import jsonConstants from "../constants/Optimism.json";
 import { join } from "path";
 import { writeFile } from "fs/promises";
-import { AutoConverterFactory } from "../../artifacts/types";
+import { Registry, AutoConverterFactory } from "../../artifacts/types";
 
 export async function deploy<Type>(
   typeName: string,
@@ -18,16 +19,34 @@ export async function deploy<Type>(
   return ctr;
 }
 
+export async function getContractAt<Type>(
+  typeName: string,
+  address: string
+): Promise<Type> {
+  const ctr = (await ethers.getContractAt(
+    typeName,
+    address
+  )) as unknown as Type;
+  return ctr;
+}
+
 async function main() {
+  const keeperRegistry = jsonOutput.KeeperRegistry;
+  const relayFactoryRegistry = await getContractAt<Registry>(
+    "Registry",
+    jsonOutput.Registry
+  );
+
   const acFactory = await deploy<AutoConverterFactory>(
     "AutoConverterFactory",
     undefined,
     jsonConstants.v2.Forwarder,
     jsonConstants.v2.Voter,
     jsonConstants.v2.Router,
-    jsonConstants.v2.FactoryRegistry
+    keeperRegistry
   );
   console.log(`AutoConverterFactory deployed to ${acFactory.address}`);
+  await relayFactoryRegistry.approve(acFactory.address);
 
   interface DeployOutput {
     AutoConverterFactory: string;
@@ -37,7 +56,11 @@ async function main() {
   };
 
   const outputDirectory = "script/constants/output";
-  const outputFile = join(process.cwd(), outputDirectory, "Tenderly.json");
+  const outputFile = join(
+    process.cwd(),
+    outputDirectory,
+    "TenderlyAutoConverter.json"
+  );
 
   try {
     await writeFile(outputFile, JSON.stringify(output, null, 2));

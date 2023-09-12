@@ -5,11 +5,6 @@ import {ICompoundOptimizer} from "../interfaces/ICompoundOptimizer.sol";
 import {IAutoCompounder} from "../interfaces/IAutoCompounder.sol";
 import {IAutoCompounderFactory} from "../interfaces/IAutoCompounderFactory.sol";
 
-import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
-import {IVelo} from "@velodrome/contracts/interfaces/IVelo.sol";
-import {IVoter} from "@velodrome/contracts/interfaces/IVoter.sol";
-import {IVotingEscrow} from "@velodrome/contracts/interfaces/IVotingEscrow.sol";
-import {IRewardsDistributor} from "@velodrome/contracts/interfaces/IRewardsDistributor.sol";
 import {VelodromeTimeLibrary} from "@velodrome/contracts/libraries/VelodromeTimeLibrary.sol";
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 
@@ -22,6 +17,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 /// @notice Auto-Compound voting rewards earned from a Managed veNFT back into the veNFT through call incentivization
 contract AutoCompounder is IAutoCompounder, Relay {
     using SafeERC20 for IERC20;
+
     uint256 internal constant WEEK = 7 days;
     uint256 public constant MAX_SLIPPAGE = 500;
     uint256 public constant POINTS = 3;
@@ -38,8 +34,9 @@ contract AutoCompounder is IAutoCompounder, Relay {
         address _admin,
         string memory _name,
         address _router,
-        address _optimizer
-    ) Relay(_forwarder, _voter, _admin, _name) {
+        address _optimizer,
+        address _relayFactory
+    ) Relay(_forwarder, _voter, _admin, _relayFactory, _name) {
         autoCompounderFactory = IAutoCompounderFactory(_msgSender());
         router = IRouter(_router);
         optimizer = ICompoundOptimizer(_optimizer);
@@ -63,13 +60,6 @@ contract AutoCompounder is IAutoCompounder, Relay {
         } else {
             if (timestamp < firstDayEnd) revert TooSoon();
         }
-        _;
-    }
-
-    /// @dev Validate msg.sender is a keeper added by Velodrome team.
-    ///      Can only call permissioned functions 1 day after epoch flip
-    modifier onlyKeeper(address _sender) {
-        if (!autoCompounderFactory.isKeeper(_sender)) revert NotKeeper();
         _;
     }
 
@@ -100,7 +90,7 @@ contract AutoCompounder is IAutoCompounder, Relay {
         IRouter.Route[] memory _optionalRoute
     ) public onlyLastDayOfEpoch {
         if (_slippage > MAX_SLIPPAGE) revert SlippageTooHigh();
-        if (_token == address(velo)) revert InvalidPath(); // TODO: add check as old version only continues the next loop
+        if (_token == address(velo)) revert InvalidPath();
         uint256 balance = IERC20(_token).balanceOf(address(this));
         if (balance == 0) revert AmountInZero();
 

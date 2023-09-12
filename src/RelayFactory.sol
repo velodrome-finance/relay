@@ -2,43 +2,43 @@
 pragma solidity 0.8.19;
 
 import {IRelayFactory} from "./interfaces/IRelayFactory.sol";
+import {IRegistry} from "./interfaces/IRegistry.sol";
 import {Relay} from "./Relay.sol";
 
 import {IVotingEscrow} from "@velodrome/contracts/interfaces/IVotingEscrow.sol";
-import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 import {IVoter} from "@velodrome/contracts/interfaces/IVoter.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
 /// @title RelayFactory
 /// @author velodrome.finance, @airtoonricardo
 /// @notice Factory contract to create Relays and manage their authorized callers
-abstract contract RelayFactory is IRelayFactory, ERC2771Context {
+abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     address public immutable forwarder;
     address public immutable router;
     address public immutable voter;
 
-    Ownable public immutable factoryRegistry;
     IVotingEscrow public immutable ve;
+    IRegistry public keeperRegistry;
 
-    EnumerableSet.AddressSet private _keepers;
     EnumerableSet.AddressSet internal _relays;
 
     constructor(
         address _forwarder,
         address _voter,
         address _router,
-        address _factoryRegistry
+        address _keeperRegistry
     ) ERC2771Context(_forwarder) {
         forwarder = _forwarder;
         voter = _voter;
         router = _router;
 
-        factoryRegistry = Ownable(_factoryRegistry);
+        keeperRegistry = IRegistry(_keeperRegistry);
         ve = IVotingEscrow(IVoter(voter).ve());
     }
 
@@ -79,6 +79,14 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context {
     }
 
     /// @inheritdoc IRelayFactory
+    function setKeeperRegistry(address _keeperRegistry) external onlyOwner {
+        if (_keeperRegistry == address(0)) revert ZeroAddress();
+        if (address(keeperRegistry) == _keeperRegistry) revert SameRegistry();
+        keeperRegistry = IRegistry(_keeperRegistry);
+        emit SetKeeperRegistry(_keeperRegistry);
+    }
+
+    /// @inheritdoc IRelayFactory
     function relays() external view returns (address[] memory) {
         return _relays.values();
     }
@@ -93,40 +101,20 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context {
         return _relays.length();
     }
 
+    /// @inheritdoc IRelayFactory
+    function isKeeper(address _keeper) external view returns (bool) {
+        return keeperRegistry.isApproved(_keeper);
+    }
+
     // -------------------------------------------------
-    // Keeper Functions
+    // Overrides
     // -------------------------------------------------
 
-    /// @inheritdoc IRelayFactory
-    function addKeeper(address _keeper) external {
-        if (_msgSender() != factoryRegistry.owner()) revert NotTeam();
-        if (_keeper == address(0)) revert ZeroAddress();
-        if (isKeeper(_keeper)) revert KeeperAlreadyExists();
-        _keepers.add(_keeper);
-        emit AddKeeper(_keeper);
+    function _msgData() internal view override(ERC2771Context, Context) returns (bytes calldata) {
+        return ERC2771Context._msgData();
     }
 
-    /// @inheritdoc IRelayFactory
-    function removeKeeper(address _keeper) external {
-        if (_msgSender() != factoryRegistry.owner()) revert NotTeam();
-        if (_keeper == address(0)) revert ZeroAddress();
-        if (!isKeeper(_keeper)) revert KeeperDoesNotExist();
-        _keepers.remove(_keeper);
-        emit RemoveKeeper(_keeper);
-    }
-
-    /// @inheritdoc IRelayFactory
-    function keepers() external view returns (address[] memory) {
-        return _keepers.values();
-    }
-
-    /// @inheritdoc IRelayFactory
-    function isKeeper(address _keeper) public view returns (bool) {
-        return _keepers.contains(_keeper);
-    }
-
-    /// @inheritdoc IRelayFactory
-    function keepersLength() external view returns (uint256) {
-        return _keepers.length();
+    function _msgSender() internal view override(ERC2771Context, Context) returns (address) {
+        return ERC2771Context._msgSender();
     }
 }

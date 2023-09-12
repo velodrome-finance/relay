@@ -7,7 +7,6 @@ interface IAutoConverter {
     error AmountInTooHigh();
     error AmountInZero();
     error InvalidPath();
-    error NotKeeper();
     error SlippageTooHigh();
 
     event SwapTokenToToken(
@@ -34,7 +33,7 @@ interface IAutoConverter {
     // -------------------------------------------------
 
     /// @notice Swap one token into the target token stored by the autoConverter
-    ///         Only callable by keepers added by FactoryRegistry.owner() within AutoConverterFactory.
+    ///         Only callable by keepers added by Owner within AutoConverterFactory.
     ///         Swapping is done with routes and amounts swapped determined by the keeper.
     /// @dev _amountIn and _amountOutMin cannot be 0.
     /// @param _routes          Arrays for which swap routes to execute

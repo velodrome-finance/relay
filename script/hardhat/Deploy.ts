@@ -5,6 +5,7 @@ import jsonConstants from "../constants/Optimism.json";
 import { join } from "path";
 import { writeFile } from "fs/promises";
 import {
+  Registry,
   CompoundOptimizer,
   AutoCompounderFactory,
 } from "../../artifacts/types";
@@ -22,6 +23,15 @@ export async function deploy<Type>(
 }
 
 async function main() {
+  const relayFactoryRegistry = await deploy<Registry>(
+    "Registry",
+    undefined,
+    []
+  );
+  console.log(`Registry deployed to ${relayFactoryRegistry.address}`);
+  const keeperRegistry = await deploy<Registry>("Registry", undefined, []);
+  console.log(`KeeperRegistry deployed to ${keeperRegistry.address}`);
+
   const optimizer = await deploy<CompoundOptimizer>(
     "CompoundOptimizer",
     undefined,
@@ -40,16 +50,21 @@ async function main() {
     jsonConstants.v2.Voter,
     jsonConstants.v2.Router,
     optimizer.address,
-    jsonConstants.v2.FactoryRegistry,
+    keeperRegistry.address,
     jsonConstants.highLiquidityTokens
   );
   console.log(`AutoCompounderFactory deployed to ${acFactory.address}`);
+  await relayFactoryRegistry.approve(acFactory.address);
 
   interface DeployOutput {
+    Registry: string;
+    KeeperRegistry: string;
     CompoundOptimizer: string;
     AutoCompounderFactory: string;
   }
   const output: DeployOutput = {
+    Registry: relayFactoryRegistry.address,
+    KeeperRegistry: keeperRegistry.address,
     CompoundOptimizer: optimizer.address,
     AutoCompounderFactory: acFactory.address,
   };

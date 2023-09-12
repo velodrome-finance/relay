@@ -5,8 +5,6 @@ import {ICompoundOptimizer} from "../interfaces/ICompoundOptimizer.sol";
 
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 import {IPoolFactory} from "@velodrome/contracts/interfaces/factories/IPoolFactory.sol";
-import {IVotingEscrow} from "@velodrome/contracts/interfaces/IVotingEscrow.sol";
-import {IVoter} from "@velodrome/contracts/interfaces/IVoter.sol";
 import {IPool} from "@velodrome/contracts/interfaces/IPool.sol";
 
 /// @notice Helper contract to calculate optimal amountOut from the Velodrome v2 Router
@@ -82,8 +80,9 @@ contract CompoundOptimizer is ICompoundOptimizer {
             routes[1] = routesTokenToVelo[i][1];
 
             // Go to next route if a trading pool does not exist
-            if (IPoolFactory(routes[0].factory).getPair(routes[0].from, routes[0].to, routes[0].stable) == address(0))
+            if (IPoolFactory(routes[0].factory).getPair(routes[0].from, routes[0].to, routes[0].stable) == address(0)) {
                 continue;
+            }
 
             amountsOut = router.getAmountsOut(amountIn, routes);
             // amountOut is in the third index - 0 is amountIn and 1 is the first route output

@@ -4,17 +4,13 @@ pragma solidity ^0.8.0;
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 
 interface IAutoCompounder {
-    error AlreadyInitialized();
     error AmountInTooHigh();
     error AmountInZero();
     error HighLiquidityToken();
     error InvalidPath();
-    error NotFactory();
     error NotHighLiquidityToken();
-    error NotKeeper();
     error NoRouteFound();
     error SlippageTooHigh();
-    error TokenIdAlreadySet();
     error TooLate();
     error TooSoon();
     error UnequalLengths();
@@ -89,7 +85,7 @@ interface IAutoCompounder {
     // -------------------------------------------------
 
     /// @notice Swap a token into VELO as called by an authorized keeper
-    ///         Only callable by keepers added by FactoryRegistry.owner() within AutoCompounderFactory.
+    ///         Only callable by keepers added by Owner within AutoCompounderFactory.
     ///         Only callable 24 hours after the epoch flip
     ///         Swapping is done with routes and amount swapped determined by the keeper.
     /// @dev _amountIn and _amountOutMin cannot be 0.

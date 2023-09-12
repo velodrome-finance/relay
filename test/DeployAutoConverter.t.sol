@@ -3,6 +3,7 @@ pragma solidity 0.8.19;
 
 import "forge-std/Test.sol";
 import "forge-std/StdJson.sol";
+import "../script/Deploy.s.sol";
 import "../script/DeployAutoConverter.s.sol";
 
 contract TestDeployAutoConverter is Script, Test {
@@ -16,15 +17,18 @@ contract TestDeployAutoConverter is Script, Test {
     uint256 BLOCK_NUMBER = vm.envOr("FORK_BLOCK_NUMBER", uint256(0));
     string public CONSTANTS_FILENAME = vm.envString("CONSTANTS_FILENAME");
     string public jsonConstants;
-    address public constant testDeployer = address(1);
+    uint256 public deployPrivateKey = vm.envUint("PRIVATE_KEY_DEPLOY");
+    address public testDeployer = vm.rememberKey(deployPrivateKey);
+
+    // address public constant testDeployer = /* address(1) */;
 
     address router;
     address USDC;
     address forwarder;
     address voter;
-    address factoryRegistry;
 
-    DeployAutoConverter deploy;
+    Deploy deploy;
+    DeployAutoConverter deployAutoConverter;
 
     constructor() {}
 
@@ -36,7 +40,8 @@ contract TestDeployAutoConverter is Script, Test {
         }
         vm.selectFork(optimismFork);
 
-        deploy = new DeployAutoConverter();
+        deploy = new Deploy();
+        deployAutoConverter = new DeployAutoConverter();
 
         // load in variables
         string memory root = vm.projectRoot();
@@ -47,10 +52,10 @@ contract TestDeployAutoConverter is Script, Test {
         router = abi.decode(jsonConstants.parseRaw(".v2.Router"), (address));
         forwarder = abi.decode(jsonConstants.parseRaw(".v2.Forwarder"), (address));
         voter = abi.decode(jsonConstants.parseRaw(".v2.Voter"), (address));
-        factoryRegistry = abi.decode(jsonConstants.parseRaw(".v2.FactoryRegistry"), (address));
 
         // use test account for deployment
         stdstore.target(address(deploy)).sig("deployerAddress()").checked_write(testDeployer);
+        stdstore.target(address(deployAutoConverter)).sig("deployerAddress()").checked_write(testDeployer);
     }
 
     function testLoadedState() public {
@@ -58,17 +63,22 @@ contract TestDeployAutoConverter is Script, Test {
         assertTrue(USDC != address(0));
         assertTrue(forwarder != address(0));
         assertTrue(voter != address(0));
-        assertTrue(factoryRegistry != address(0));
     }
 
     function testDeployScript() public {
         deploy.run();
+        deployAutoConverter.run();
 
-        assertTrue(address(deploy.autoConverterFactory()) != address(0));
+        assertTrue(address(deployAutoConverter.autoConverterFactory()) != address(0));
 
         // AutoConverterFactory state checks
-        assertEq(deploy.autoConverterFactory().forwarder(), forwarder);
-        assertEq(deploy.autoConverterFactory().voter(), voter);
-        assertEq(deploy.autoConverterFactory().router(), router);
+        assertEq(deployAutoConverter.autoConverterFactory().forwarder(), forwarder);
+        assertEq(deployAutoConverter.autoConverterFactory().voter(), voter);
+        assertEq(deployAutoConverter.autoConverterFactory().router(), router);
+
+        assertEq(address(deployAutoConverter.keeperRegistry().owner()), testDeployer);
+        assertTrue(
+            deployAutoConverter.relayFactoryRegistry().isApproved(address(deployAutoConverter.autoConverterFactory()))
+        );
     }
 }

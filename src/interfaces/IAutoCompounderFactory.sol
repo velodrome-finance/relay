@@ -23,12 +23,12 @@ interface IAutoCompounderFactory is IRelayFactory {
     function rewardAmount() external view returns (uint256);
 
     /// @notice Set the amount of VELO to reward a public caller of `AutoCompounder.claimXAndCompound()`
-    ///         Callable by FactoryRegistry.owner()
+    ///         Callable by Owner
     /// @param _rewardAmount Amount of VELO
     function setRewardAmount(uint256 _rewardAmount) external;
 
     /// @notice Register a token address with high liquidity
-    ///         Callable by FactoryRegistry.owner()
+    ///         Callable by Owner
     /// @dev Once an address is added, it cannot be removed
     /// @param _token Address of token to register
     function addHighLiquidityToken(address _token) external;

@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
+import {Registry} from "src/Registry.sol";
 import {AutoCompounder} from "src/autoCompounder/AutoCompounder.sol";
 import {AutoCompounderFactory} from "src/autoCompounder/AutoCompounderFactory.sol";
 import {CompoundOptimizer} from "src/autoCompounder/CompoundOptimizer.sol";
@@ -18,6 +19,8 @@ contract Deploy is Script {
 
     AutoCompounder public autoCompounder;
     AutoCompounderFactory public autoCompounderFactory;
+    Registry public keeperRegistry;
+    Registry public relayFactoryRegistry;
     CompoundOptimizer public optimizer;
     string public jsonConstants;
     string public jsonOutput;
@@ -39,21 +42,23 @@ contract Deploy is Script {
         // AutoCompounderFactory-specific
         address forwarder = abi.decode(jsonConstants.parseRaw(".v2.Forwarder"), (address));
         address voter = abi.decode(jsonConstants.parseRaw(".v2.Voter"), (address));
-        address factoryRegistry = abi.decode(jsonConstants.parseRaw(".v2.FactoryRegistry"), (address));
         address[] memory highLiquidityTokens = abi.decode(jsonConstants.parseRaw(".highLiquidityTokens"), (address[]));
 
         vm.startBroadcast(deployerAddress);
 
         // first deploy optimizer to pass into AutoCompounderFactory
+        relayFactoryRegistry = new Registry(new address[](0));
+        keeperRegistry = new Registry(new address[](0));
         optimizer = new CompoundOptimizer(USDC, WETH, OP, VELO, poolFactory, router);
         autoCompounderFactory = new AutoCompounderFactory(
             forwarder,
             voter,
             router,
             address(optimizer),
-            factoryRegistry,
+            address(keeperRegistry),
             highLiquidityTokens
         );
+        relayFactoryRegistry.approve(address(autoCompounderFactory));
 
         vm.stopBroadcast();
 
@@ -61,5 +66,7 @@ contract Deploy is Script {
         path = string.concat(path, outputFilename);
         vm.writeJson(vm.serializeAddress("v2", "CompoundOptimizer", address(optimizer)), path);
         vm.writeJson(vm.serializeAddress("v2", "AutoCompounderFactory", address(autoCompounderFactory)), path);
+        vm.writeJson(vm.serializeAddress("v2", "RelayFactoryRegistry", address(relayFactoryRegistry)), path);
+        vm.writeJson(vm.serializeAddress("v2", "KeeperRegistry", address(keeperRegistry)), path);
     }
 }

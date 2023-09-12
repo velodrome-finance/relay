@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.19;
 
+import "src/Relay.sol";
+import "src/Registry.sol";
 import "src/autoConverter/AutoConverter.sol";
 import "src/autoConverter/AutoConverterFactory.sol";
 
@@ -12,6 +14,7 @@ contract AutoConverterTest is BaseTest {
 
     AutoConverterFactory autoConverterFactory;
     AutoConverter autoConverter;
+    Registry keeperRegistry;
     LockedManagedReward lockedManagedReward;
     FreeManagedReward freeManagedReward;
 
@@ -43,12 +46,13 @@ contract AutoConverterTest is BaseTest {
         skipToNextEpoch(1 hours + 1);
         voter.depositManaged(tokenId, mTokenId);
 
+        keeperRegistry = new Registry(new address[](0));
         // Create auto converter
         autoConverterFactory = new AutoConverterFactory(
             address(forwarder),
             address(voter),
             address(router),
-            address(factoryRegistry)
+            address(keeperRegistry)
         );
         escrow.approve(address(autoConverterFactory), mTokenId);
         autoConverter = AutoConverter(
@@ -61,7 +65,7 @@ contract AutoConverterTest is BaseTest {
 
         // Add the owner as a keeper
         vm.prank(escrow.team());
-        autoConverterFactory.addKeeper(address(owner));
+        keeperRegistry.approve(address(owner));
 
         // Create a VELO pool for USDC, WETH, and FRAX (seen as OP in CompoundOptimizer)
         deal(address(VELO), address(owner), TOKEN_100K * 3);
@@ -84,6 +88,48 @@ contract AutoConverterTest is BaseTest {
 
         // skip to last day where claiming becomes public
         skipToNextEpoch(6 days + 1);
+    }
+
+    function testManagedTokenID() public {
+        assertEq(autoConverter.mTokenId(), mTokenId);
+        assertEq(escrow.ownerOf(mTokenId), address(autoConverter));
+        assertTrue(escrow.escrowType(mTokenId) == IVotingEscrow.EscrowType.MANAGED);
+    }
+
+    function testCannotInitializeIfAlreadyInitialized() external {
+        vm.expectRevert("Initializable: contract is already initialized");
+        autoConverter.initialize(1);
+    }
+
+    function testCannotInitializeTokenNotOwned() external {
+        AutoConverter comp = new AutoConverter(
+            address(forwarder),
+            address(voter),
+            address(owner),
+            "",
+            address(router),
+            address(USDC),
+            address(autoConverterFactory)
+        );
+        uint256 _mTokenId = escrow.createManagedLockFor(address(owner));
+        vm.prank(escrow.allowedManager());
+        vm.expectRevert(IRelay.ManagedTokenNotOwned.selector);
+        comp.initialize(_mTokenId);
+    }
+
+    function testCannotInitializeTokenNotManaged() external {
+        AutoConverter comp = new AutoConverter(
+            address(forwarder),
+            address(voter),
+            address(owner),
+            "",
+            address(router),
+            address(USDC),
+            address(autoConverterFactory)
+        );
+        vm.prank(escrow.allowedManager());
+        vm.expectRevert(IRelay.TokenIdNotManaged.selector);
+        comp.initialize(2);
     }
 
     function _createPoolAndSimulateSwaps(
@@ -110,67 +156,57 @@ contract AutoConverterTest is BaseTest {
         }
     }
 
-    // function testClaimAndConvertClaimRebaseOnly() public {
-    //     address[] memory pools = new address[](2);
-    //     pools[0] = address(pool);
-    //     pools[1] = address(pool2);
-    //     uint256[] memory weights = new uint256[](2);
-    //     weights[0] = 1;
-    //     weights[1] = 1;
+    function testClaimAndConvertClaimRebaseOnly() public {
+        address[] memory pools = new address[](2);
+        pools[0] = address(pool);
+        pools[1] = address(pool2);
+        uint256[] memory weights = new uint256[](2);
+        weights[0] = 1;
+        weights[1] = 1;
 
-    //     autoConverter.vote(pools, weights);
+        autoConverter.vote(pools, weights);
 
-    //     skipToNextEpoch(6 days + 1);
-    //     minter.updatePeriod();
+        skipToNextEpoch(6 days + 1);
+        minter.updatePeriod();
 
-    //     uint256 claimable = distributor.claimable(mTokenId);
-    //     assertGt(distributor.claimable(mTokenId), 0);
+        uint256 claimable = distributor.claimable(mTokenId);
+        assertGt(distributor.claimable(mTokenId), 0);
 
-    //     uint256 balanceBefore = escrow.balanceOfNFT(mTokenId);
-    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](0);
-    //     uint256[] memory amountsIn = new uint256[](0);
-    //     uint256[] memory amountsOutMin = new uint256[](0);
-    //     autoConverter.claimAndConvertKeeper(
-    //         bribes,
-    //         tokensToClaim,
-    //         fees,
-    //         tokensToClaim,
-    //         allRoutes,
-    //         amountsIn,
-    //         amountsOutMin
-    //     );
-    //     assertEq(escrow.balanceOfNFT(mTokenId), balanceBefore + claimable);
-    // }
+        uint256 balanceBefore = escrow.balanceOfNFT(mTokenId);
+        autoConverter.claimFees(fees, tokensToClaim);
+        autoConverter.claimBribes(bribes, tokensToClaim);
+        assertEq(escrow.balanceOfNFT(mTokenId), balanceBefore + claimable);
+    }
 
-    // function testIncreaseAmount() public {
-    //     uint256 amount = TOKEN_1;
-    //     deal(address(VELO), address(owner), amount);
-    //     VELO.approve(address(autoConverter), amount);
+    function testIncreaseAmount() public {
+        uint256 amount = TOKEN_1;
+        deal(address(VELO), address(owner), amount);
+        VELO.approve(address(autoConverter), amount);
 
-    //     uint256 balanceBefore = escrow.balanceOfNFT(mTokenId);
-    //     uint256 supplyBefore = escrow.totalSupply();
+        uint256 balanceBefore = escrow.balanceOfNFT(mTokenId);
+        uint256 supplyBefore = escrow.totalSupply();
 
-    //     autoConverter.increaseAmount(amount);
+        autoConverter.increaseAmount(amount);
 
-    //     assertEq(escrow.balanceOfNFT(mTokenId), balanceBefore + amount);
-    //     assertEq(escrow.totalSupply(), supplyBefore + amount);
-    // }
+        assertEq(escrow.balanceOfNFT(mTokenId), balanceBefore + amount);
+        assertEq(escrow.totalSupply(), supplyBefore + amount);
+    }
 
-    // function testVote() public {
-    //     address[] memory poolVote = new address[](1);
-    //     uint256[] memory weights = new uint256[](1);
-    //     poolVote[0] = address(pool2);
-    //     weights[0] = 1;
+    function testVote() public {
+        address[] memory poolVote = new address[](1);
+        uint256[] memory weights = new uint256[](1);
+        poolVote[0] = address(pool2);
+        weights[0] = 1;
 
-    //     assertFalse(escrow.voted(mTokenId));
+        assertFalse(escrow.voted(mTokenId));
 
-    //     autoConverter.vote(poolVote, weights);
+        autoConverter.vote(poolVote, weights);
 
-    //     assertTrue(escrow.voted(mTokenId));
-    //     assertEq(voter.weights(address(pool2)), escrow.balanceOfNFT(mTokenId));
-    //     assertEq(voter.votes(mTokenId, address(pool2)), escrow.balanceOfNFT(mTokenId));
-    //     assertEq(voter.poolVote(mTokenId, 0), address(pool2));
-    // }
+        assertTrue(escrow.voted(mTokenId));
+        assertEq(voter.weights(address(pool2)), escrow.balanceOfNFT(mTokenId));
+        assertEq(voter.votes(mTokenId, address(pool2)), escrow.balanceOfNFT(mTokenId));
+        assertEq(voter.poolVote(mTokenId, 0), address(pool2));
+    }
 
     function testSwapTokenToToken() public {
         deal(address(FRAX), address(autoConverter), TOKEN_1 / 1000, true);
@@ -189,147 +225,79 @@ contract AutoConverterTest is BaseTest {
         );
     }
 
-    // function testCannotInitializeTwice() external {
-    //     vm.prank(address(autoConverter.autoConverterFactory()));
-    //     vm.expectRevert(IAutoConverter.AlreadyInitialized.selector);
-    //     autoConverter.initialize(1);
-    // }
+    function testHandleRouterApproval() public {
+        deal(address(FRAX), address(autoConverter), TOKEN_1 / 1000, true);
 
-    // function testCannotInitializeIfNotFactory() external {
-    //     vm.expectRevert(IAutoConverter.NotFactory.selector);
-    //     autoConverter.initialize(1);
-    // }
+        // give a fake approval to impersonate a dangling approved amount
+        vm.prank(address(autoConverter));
+        FRAX.approve(address(router), 100);
 
-    // function testHandleRouterApproval() public {
-    //     deal(address(FRAX), address(autoConverter), TOKEN_1 / 1000, true);
+        // resets and properly approves swap amount
+        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+        IRouter.Route[] memory routes = new IRouter.Route[](1);
+        routes[0] = IRouter.Route(address(FRAX), address(USDC), false, address(0));
+        allRoutes[0] = routes;
+        uint256 amountIn = TOKEN_1 / 1000;
+        uint256 amountOutMin = 1;
 
-    //     // give a fake approval to impersonate a dangling approved amount
-    //     vm.prank(address(autoConverter));
-    //     FRAX.approve(address(router), 100);
-
-    //     // resets and properly approves swap amount
-    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-    //     IRouter.Route[] memory routes = new IRouter.Route[](1);
-    //     routes[0] = IRouter.Route(address(FRAX), address(USDC), false, address(0));
-    //     allRoutes[0] = routes;
-    //     uint256[] memory amountsIn = new uint256[](1);
-    //     amountsIn[0] = TOKEN_1 / 1000;
-    //     uint256[] memory amountsOutMin = new uint256[](1);
-    //     amountsOutMin[0] = 1;
-
-    //     autoConverter.claimAndConvertKeeper(
-    //         bribes,
-    //         tokensToClaim,
-    //         fees,
-    //         tokensToClaim,
-    //         allRoutes,
-    //         amountsIn,
-    //         amountsOutMin
-    //     );
-    //     assertEq(FRAX.allowance(address(autoConverter), address(router)), 0);
-    // }
+        autoConverter.swapTokenToToken(routes, amountIn, amountOutMin);
+        assertEq(FRAX.allowance(address(autoConverter), address(router)), 0);
+    }
 
     function testCannotSwapTokenToTokenIfNotKeeper() public {
         vm.startPrank(address(owner2));
-        vm.expectRevert(IAutoConverter.NotKeeper.selector);
+        vm.expectRevert(IRelay.NotKeeper.selector);
         autoConverter.swapTokenToToken(new IRouter.Route[](0), 0, 0);
     }
 
-    // function testCannotSwapKeeperIfAmountInZero() public {
-    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-    //     uint256[] memory amountsIn = new uint256[](1);
-    //     uint256[] memory amountsOutMin = new uint256[](1);
-    //     vm.expectRevert(IAutoConverter.AmountInZero.selector);
-    //     autoConverter.claimAndConvertKeeper(
-    //         bribes,
-    //         tokensToClaim,
-    //         fees,
-    //         tokensToClaim,
-    //         allRoutes,
-    //         amountsIn,
-    //         amountsOutMin
-    //     );
-    // }
+    function testCannotSwapKeeperIfAmountInZero() public {
+        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+        uint256 amountIn = 0;
+        uint256 amountOutMin = 0;
+        vm.expectRevert(IAutoConverter.AmountInZero.selector);
+        autoConverter.swapTokenToToken(allRoutes[0], amountIn, amountOutMin);
+    }
 
-    // function testCannotSwapKeeperIfSlippageTooHigh() public {
-    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-    //     uint256[] memory amountsIn = new uint256[](1);
-    //     uint256[] memory amountsOutMin = new uint256[](1);
-    //     amountsIn[0] = 1;
-    //     vm.expectRevert(IAutoConverter.SlippageTooHigh.selector);
-    //     autoConverter.claimAndConvertKeeper(
-    //         bribes,
-    //         tokensToClaim,
-    //         fees,
-    //         tokensToClaim,
-    //         allRoutes,
-    //         amountsIn,
-    //         amountsOutMin
-    //     );
-    // }
+    function testCannotSwapKeeperIfSlippageTooHigh() public {
+        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+        uint256 amountIn = 1;
+        uint256 amountOutMin = 0;
+        vm.expectRevert(IAutoConverter.SlippageTooHigh.selector);
+        autoConverter.swapTokenToToken(allRoutes[0], amountIn, amountOutMin);
+    }
 
-    // function testCannotSwapKeeperIfInvalidPath() public {
-    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-    //     IRouter.Route[] memory routes = new IRouter.Route[](1);
-    //     routes[0] = IRouter.Route(address(0), address(0), false, address(0));
-    //     allRoutes[0] = routes;
-    //     uint256[] memory amountsIn = new uint256[](1);
-    //     uint256[] memory amountsOutMin = new uint256[](1);
-    //     amountsIn[0] = 1;
-    //     amountsOutMin[0] = 1;
-    //     vm.expectRevert(IAutoConverter.InvalidPath.selector);
-    //     autoConverter.claimAndConvertKeeper(
-    //         bribes,
-    //         tokensToClaim,
-    //         fees,
-    //         tokensToClaim,
-    //         allRoutes,
-    //         amountsIn,
-    //         amountsOutMin
-    //     );
-    // }
+    function testCannotSwapKeeperIfInvalidPath() public {
+        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+        IRouter.Route[] memory routes = new IRouter.Route[](1);
+        routes[0] = IRouter.Route(address(0), address(0), false, address(0));
+        allRoutes[0] = routes;
+        uint256 amountIn = 1;
+        uint256 amountOutMin = 1;
+        vm.expectRevert(IAutoConverter.InvalidPath.selector);
+        autoConverter.swapTokenToToken(allRoutes[0], amountIn, amountOutMin);
+    }
 
-    // function testCannotSwapKeeperFromUSDC() public {
-    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-    //     IRouter.Route[] memory routes = new IRouter.Route[](1);
-    //     routes[0] = IRouter.Route(address(USDC), address(0), false, address(0));
-    //     allRoutes[0] = routes;
-    //     uint256[] memory amountsIn = new uint256[](1);
-    //     uint256[] memory amountsOutMin = new uint256[](1);
-    //     amountsIn[0] = 1;
-    //     amountsOutMin[0] = 1;
-    //     vm.expectRevert(IAutoConverter.InvalidPath.selector);
-    //     autoConverter.claimAndConvertKeeper(
-    //         bribes,
-    //         tokensToClaim,
-    //         fees,
-    //         tokensToClaim,
-    //         allRoutes,
-    //         amountsIn,
-    //         amountsOutMin
-    //     );
-    // }
+    function testCannotSwapKeeperFromUSDC() public {
+        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+        IRouter.Route[] memory routes = new IRouter.Route[](1);
+        routes[0] = IRouter.Route(address(USDC), address(0), false, address(0));
+        allRoutes[0] = routes;
+        uint256 amountIn = 1;
+        uint256 amountOutMin = 1;
+        vm.expectRevert(IAutoConverter.InvalidPath.selector);
+        autoConverter.swapTokenToToken(allRoutes[0], amountIn, amountOutMin);
+    }
 
-    // function testCannotSwapKeeperIfAmountInTooHigh() public {
-    //     IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
-    //     IRouter.Route[] memory routes = new IRouter.Route[](1);
-    //     routes[0] = IRouter.Route(address(WETH), address(USDC), false, address(0));
-    //     allRoutes[0] = routes;
-    //     uint256[] memory amountsIn = new uint256[](1);
-    //     uint256[] memory amountsOutMin = new uint256[](1);
-    //     amountsIn[0] = 1;
-    //     amountsOutMin[0] = 1;
-    //     vm.expectRevert(IAutoConverter.AmountInTooHigh.selector);
-    //     autoConverter.claimAndConvertKeeper(
-    //         bribes,
-    //         tokensToClaim,
-    //         fees,
-    //         tokensToClaim,
-    //         allRoutes,
-    //         amountsIn,
-    //         amountsOutMin
-    //     );
-    // }
+    function testCannotSwapKeeperIfAmountInTooHigh() public {
+        IRouter.Route[][] memory allRoutes = new IRouter.Route[][](1);
+        IRouter.Route[] memory routes = new IRouter.Route[](1);
+        routes[0] = IRouter.Route(address(WETH), address(USDC), false, address(0));
+        allRoutes[0] = routes;
+        uint256 amountIn = 1;
+        uint256 amountOutMin = 1;
+        vm.expectRevert(IAutoConverter.AmountInTooHigh.selector);
+        autoConverter.swapTokenToToken(allRoutes[0], amountIn, amountOutMin);
+    }
 
     function testCannotSweepIfNotAdmin() public {
         deal(address(USDC), address(autoConverter), TOKEN_1);

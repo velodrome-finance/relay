@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import "src/Relay.sol";
+import "src/Registry.sol";
 import "src/autoCompounder/AutoCompounder.sol";
 import "src/autoCompounder/CompoundOptimizer.sol";
 import "src/autoCompounder/AutoCompounderFactory.sol";
@@ -15,6 +16,7 @@ contract AutoCompounderTest is BaseTest {
     AutoCompounderFactory autoCompounderFactory;
     AutoCompounder autoCompounder;
     CompoundOptimizer optimizer;
+    Registry keeperRegistry;
     LockedManagedReward lockedManagedReward;
     FreeManagedReward freeManagedReward;
 
@@ -54,12 +56,13 @@ contract AutoCompounderTest is BaseTest {
             address(factory),
             address(router)
         );
+        keeperRegistry = new Registry(new address[](0));
         autoCompounderFactory = new AutoCompounderFactory(
             address(forwarder),
             address(voter),
             address(router),
             address(optimizer),
-            address(factoryRegistry),
+            address(keeperRegistry),
             new address[](0)
         );
         escrow.approve(address(autoCompounderFactory), mTokenId);
@@ -71,7 +74,7 @@ contract AutoCompounderTest is BaseTest {
 
         // Add the owner as a keeper
         vm.prank(escrow.team());
-        autoCompounderFactory.addKeeper(address(owner));
+        keeperRegistry.approve(address(owner));
 
         // Create a VELO pool for USDC, WETH, and FRAX (seen as OP in CompoundOptimizer)
         deal(address(VELO), address(owner), TOKEN_100K * 3);
@@ -109,6 +112,48 @@ contract AutoCompounderTest is BaseTest {
             IERC20(tokenIn).approve(address(router), amountSwapped);
             router.swapExactTokensForTokens(amountSwapped, 0, routes, address(owner), block.timestamp);
         }
+    }
+
+    function testManagedTokenID() public {
+        assertEq(autoCompounder.mTokenId(), mTokenId);
+        assertEq(escrow.ownerOf(mTokenId), address(autoCompounder));
+        assertTrue(escrow.escrowType(mTokenId) == IVotingEscrow.EscrowType.MANAGED);
+    }
+
+    function testCannotInitializeIfAlreadyInitialized() external {
+        vm.expectRevert("Initializable: contract is already initialized");
+        autoCompounder.initialize(1);
+    }
+
+    function testCannotInitializeTokenNotOwned() external {
+        AutoCompounder comp = new AutoCompounder(
+            address(forwarder),
+            address(voter),
+            address(owner),
+            "",
+            address(router),
+            address(optimizer),
+            address(autoCompounderFactory)
+        );
+        uint256 _mTokenId = escrow.createManagedLockFor(address(owner));
+        vm.prank(escrow.allowedManager());
+        vm.expectRevert(IRelay.ManagedTokenNotOwned.selector);
+        comp.initialize(_mTokenId);
+    }
+
+    function testCannotInitializeTokenNotManaged() external {
+        AutoCompounder comp = new AutoCompounder(
+            address(forwarder),
+            address(voter),
+            address(owner),
+            "",
+            address(router),
+            address(optimizer),
+            address(autoCompounderFactory)
+        );
+        vm.prank(escrow.allowedManager());
+        vm.expectRevert(IRelay.TokenIdNotManaged.selector);
+        comp.initialize(2);
     }
 
     function testCannotSwapIfNoRouteFound() public {
@@ -457,12 +502,6 @@ contract AutoCompounderTest is BaseTest {
         assertEq(autoCompounder.amountTokenEarned(VelodromeTimeLibrary.epochStart(block.timestamp)), amountOut);
     }
 
-    function testCannotInitializeIfAlreadyInitialized() external {
-        vm.prank(address(autoCompounder.autoCompounderFactory()));
-        vm.expectRevert("Initializable: contract is already initialized");
-        autoCompounder.initialize(1);
-    }
-
     function testCannotSwapTokenToVELOIfNotOnLastDayOfEpoch() external {
         bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(0), 0));
@@ -585,7 +624,7 @@ contract AutoCompounderTest is BaseTest {
 
     function testCannotSwapKeeperIfNotKeeper() public {
         vm.startPrank(address(owner2));
-        vm.expectRevert(IAutoCompounder.NotKeeper.selector);
+        vm.expectRevert(IRelay.NotKeeper.selector);
         autoCompounder.swapTokenToVELOKeeper(new IRouter.Route[](0), 0, 0);
     }
 

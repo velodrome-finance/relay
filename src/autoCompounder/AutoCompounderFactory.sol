@@ -9,7 +9,6 @@ import {IVotingEscrow} from "@velodrome/contracts/interfaces/IVotingEscrow.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title AutoCompounderFactory
 /// @author velodrome.finance, @pegahcarter, @airtoonricardo
@@ -33,9 +32,9 @@ contract AutoCompounderFactory is IAutoCompounderFactory, RelayFactory {
         address _voter,
         address _router,
         address _optimizer,
-        address _factoryRegistry,
+        address _keeperRegistry,
         address[] memory highLiquidityTokens_
-    ) RelayFactory(_forwarder, _voter, _router, _factoryRegistry) {
+    ) RelayFactory(_forwarder, _voter, _router, _keeperRegistry) {
         optimizer = _optimizer;
 
         uint256 length = highLiquidityTokens_.length;
@@ -49,12 +48,11 @@ contract AutoCompounderFactory is IAutoCompounderFactory, RelayFactory {
         string calldata _name,
         bytes calldata //_data
     ) internal override returns (address autoCompounder) {
-        autoCompounder = address(new AutoCompounder(forwarder, voter, _admin, _name, router, optimizer));
+        autoCompounder = address(new AutoCompounder(forwarder, voter, _admin, _name, router, optimizer, address(this)));
     }
 
     /// @inheritdoc IAutoCompounderFactory
-    function setRewardAmount(uint256 _rewardAmount) external {
-        if (_msgSender() != factoryRegistry.owner()) revert NotTeam();
+    function setRewardAmount(uint256 _rewardAmount) external onlyOwner {
         if (_rewardAmount == rewardAmount) revert AmountSame();
         if (_rewardAmount < MIN_REWARD_AMOUNT || _rewardAmount > MAX_REWARD_AMOUNT) revert AmountOutOfAcceptableRange();
         rewardAmount = _rewardAmount;
@@ -62,8 +60,7 @@ contract AutoCompounderFactory is IAutoCompounderFactory, RelayFactory {
     }
 
     /// @inheritdoc IAutoCompounderFactory
-    function addHighLiquidityToken(address _token) external {
-        if (_msgSender() != factoryRegistry.owner()) revert NotTeam();
+    function addHighLiquidityToken(address _token) external onlyOwner {
         _addHighLiquidityToken(_token);
     }
 

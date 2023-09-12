@@ -2,76 +2,91 @@
 pragma solidity 0.8.19;
 
 import "src/RelayFactory.sol";
+import "src/Registry.sol";
 
 import "@velodrome/test/BaseTest.sol";
 
 abstract contract RelayFactoryTest is BaseTest {
+    event SetKeeperRegistry(address indexed _keeperRegistry);
+
     uint256 tokenId;
     uint256 mTokenId;
 
     RelayFactory relayFactory;
+    Registry keeperRegistry;
 
-    function testCannotAddKeeperIfNotTeam() public {
-        vm.startPrank(address(owner2));
-        assertTrue(msg.sender != factoryRegistry.owner());
-        vm.expectRevert(IRelayFactory.NotTeam.selector);
-        relayFactory.addKeeper(address(owner2));
-    }
-
-    function testCannotAddKeeperIfZeroAddress() public {
-        vm.prank(factoryRegistry.owner());
+    function testCannotCreateAutoConverterWithNoAdmin() public {
         vm.expectRevert(IRelayFactory.ZeroAddress.selector);
-        relayFactory.addKeeper(address(0));
+        relayFactory.createRelay(address(0), 1, "", abi.encode(address(USDC)));
     }
 
-    function testCannotAddKeeperIfKeeperAlreadyExists() public {
-        vm.startPrank(factoryRegistry.owner());
-        relayFactory.addKeeper(address(owner));
-        vm.expectRevert(IRelayFactory.KeeperAlreadyExists.selector);
-        relayFactory.addKeeper(address(owner));
+    function testCannotCreateAutoConverterWithZeroTokenId() public {
+        vm.expectRevert(IRelayFactory.TokenIdZero.selector);
+        relayFactory.createRelay(address(1), 0, "", abi.encode(address(USDC)));
     }
 
-    function testAddKeeper() public {
-        assertEq(relayFactory.keepersLength(), 0);
-        assertEq(relayFactory.keepers(), new address[](0));
-        assertFalse(relayFactory.isKeeper(address(owner)));
-
-        vm.prank(factoryRegistry.owner());
-        relayFactory.addKeeper(address(owner));
-
-        assertEq(relayFactory.keepersLength(), 1);
-        address[] memory keepers = relayFactory.keepers();
-        assertEq(keepers.length, 1);
-        assertEq(keepers[0], address(owner));
-        assertTrue(relayFactory.isKeeper(address(owner)));
-    }
-
-    function testCannotRemoveKeeperIfNotTeam() public {
+    function testCannotCreateAutoConverterIfNotApprovedSender() public {
+        vm.prank(escrow.allowedManager());
+        mTokenId = escrow.createManagedLockFor(address(owner));
+        vm.startPrank(address(owner));
+        escrow.approve(address(relayFactory), mTokenId);
+        escrow.setApprovalForAll(address(relayFactory), true);
+        vm.stopPrank();
+        vm.expectRevert(IRelayFactory.TokenIdNotApproved.selector);
         vm.prank(address(owner2));
-        vm.expectRevert(IRelayFactory.NotTeam.selector);
-        relayFactory.removeKeeper(address(owner));
+        relayFactory.createRelay(address(1), mTokenId, "", abi.encode(address(USDC)));
     }
 
-    function testCannotRemoveKeeperIfZeroAddress() public {
-        vm.prank(factoryRegistry.owner());
+    function testCannotCreateAutoCompounderIfTokenNotManaged() public {
+        VELO.approve(address(escrow), TOKEN_1);
+        tokenId = escrow.createLock(TOKEN_1, MAXTIME);
+        vm.expectRevert(IRelayFactory.TokenIdNotManaged.selector);
+        relayFactory.createRelay(address(1), tokenId, "", new bytes(0)); // normal
+
+        vm.prank(escrow.allowedManager());
+        mTokenId = escrow.createManagedLockFor(address(owner));
+        voter.depositManaged(tokenId, mTokenId);
+        vm.expectRevert(IRelayFactory.TokenIdNotManaged.selector);
+        relayFactory.createRelay(address(1), tokenId, "", new bytes(0)); // locked
+    }
+
+    function testSetKeeperRegistry() public {
+        assertEq(address(relayFactory.keeperRegistry()), address(keeperRegistry));
+        vm.startPrank(relayFactory.owner());
+        address newRegistry = vm.addr(2);
+        vm.expectEmit(true, false, false, true, address(relayFactory));
+        emit SetKeeperRegistry(newRegistry);
+        relayFactory.setKeeperRegistry(newRegistry);
+        assertEq(address(relayFactory.keeperRegistry()), newRegistry);
+
+        newRegistry = vm.addr(3);
+        vm.expectEmit(true, false, false, true, address(relayFactory));
+        emit SetKeeperRegistry(newRegistry);
+        relayFactory.setKeeperRegistry(newRegistry);
+        assertEq(address(relayFactory.keeperRegistry()), newRegistry);
+    }
+
+    function testCannotSetKeeperRegistryIfNotOwner() public {
+        assertEq(address(relayFactory.keeperRegistry()), address(keeperRegistry));
+        vm.startPrank(vm.addr(1));
+        vm.expectRevert("Ownable: caller is not the owner");
+        relayFactory.setKeeperRegistry(vm.addr(2));
+        assertEq(address(relayFactory.keeperRegistry()), address(keeperRegistry));
+    }
+
+    function testCannotSetKeeperRegistryIfZeroAddress() public {
+        assertEq(address(relayFactory.keeperRegistry()), address(keeperRegistry));
+        vm.startPrank(relayFactory.owner());
         vm.expectRevert(IRelayFactory.ZeroAddress.selector);
-        relayFactory.removeKeeper(address(0));
+        relayFactory.setKeeperRegistry(address(0));
+        assertEq(address(relayFactory.keeperRegistry()), address(keeperRegistry));
     }
 
-    function testCannotRemoveKeeperIfKeeperDoesntExist() public {
-        vm.prank(factoryRegistry.owner());
-        vm.expectRevert(IRelayFactory.KeeperDoesNotExist.selector);
-        relayFactory.removeKeeper(address(owner));
-    }
-
-    function testRemoveKeeper() public {
-        vm.startPrank(factoryRegistry.owner());
-
-        relayFactory.addKeeper(address(owner));
-        relayFactory.removeKeeper(address(owner));
-
-        assertEq(relayFactory.keepersLength(), 0);
-        assertEq(relayFactory.keepers(), new address[](0));
-        assertFalse(relayFactory.isKeeper(address(owner)));
+    function testCannotSetKeeperRegistryIfSameRegistry() public {
+        assertEq(address(relayFactory.keeperRegistry()), address(keeperRegistry));
+        vm.startPrank(relayFactory.owner());
+        vm.expectRevert(IRelayFactory.SameRegistry.selector);
+        relayFactory.setKeeperRegistry(address(keeperRegistry));
+        assertEq(address(relayFactory.keeperRegistry()), address(keeperRegistry));
     }
 }

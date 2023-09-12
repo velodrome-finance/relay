@@ -17,49 +17,14 @@ contract AutoConverterFactoryTest is RelayFactoryTest {
     // @dev: refer to velodrome-finance/test/BaseTest.sol
     function _setUp() public override {
         escrow.setTeam(address(owner4));
+        keeperRegistry = new Registry(new address[](0));
         autoConverterFactory = new AutoConverterFactory(
             address(forwarder),
             address(voter),
             address(router),
-            address(factoryRegistry)
+            address(keeperRegistry)
         );
         relayFactory = RelayFactory(autoConverterFactory);
-    }
-
-    function testCannotCreateAutoConverterWithNoAdmin() public {
-        vm.expectRevert(IRelayFactory.ZeroAddress.selector);
-        autoConverterFactory.createRelay(address(0), 1, "", abi.encode(address(USDC)));
-    }
-
-    function testCannotCreateAutoConverterWithZeroTokenId() public {
-        vm.expectRevert(IRelayFactory.TokenIdZero.selector);
-        autoConverterFactory.createRelay(address(1), 0, "", abi.encode(address(USDC)));
-    }
-
-    function testCannotCreateAutoConverterIfNotApprovedSender() public {
-        vm.prank(escrow.allowedManager());
-        mTokenId = escrow.createManagedLockFor(address(owner));
-        vm.startPrank(address(owner));
-        escrow.approve(address(autoConverterFactory), mTokenId);
-        escrow.setApprovalForAll(address(autoConverterFactory), true);
-        vm.stopPrank();
-        vm.expectRevert(IRelayFactory.TokenIdNotApproved.selector);
-        vm.prank(address(owner2));
-        autoConverterFactory.createRelay(address(1), mTokenId, "", abi.encode(address(USDC)));
-    }
-
-    function testCannotCreateAutoConverterIfTokenNotManaged() public {
-        VELO.approve(address(escrow), TOKEN_1);
-        tokenId = escrow.createLock(TOKEN_1, MAXTIME);
-        vm.expectRevert(IRelayFactory.TokenIdNotManaged.selector);
-        bytes memory data = abi.encode(address(USDC));
-        autoConverterFactory.createRelay(address(1), tokenId, "", data); // normal
-
-        vm.prank(escrow.allowedManager());
-        mTokenId = escrow.createManagedLockFor(address(owner));
-        voter.depositManaged(tokenId, mTokenId);
-        vm.expectRevert(IRelayFactory.TokenIdNotManaged.selector);
-        autoConverterFactory.createRelay(address(1), tokenId, "", data); // locked
     }
 
     function testCreateAutoConverter() public {
@@ -90,6 +55,7 @@ contract AutoConverterFactoryTest is RelayFactoryTest {
         assertTrue(autoConverter.hasRole(0x00, address(owner))); // DEFAULT_ADMIN_ROLE
         assertTrue(autoConverter.hasRole(keccak256("ALLOWED_CALLER"), address(owner)));
 
+        assertEq(autoConverter.token(), address(USDC));
         assertEq(autoConverter.mTokenId(), mTokenId);
     }
 

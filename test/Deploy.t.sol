@@ -26,7 +26,6 @@ contract TestDeploy is Script, Test {
     address poolFactory;
     address forwarder;
     address voter;
-    address factoryRegistry;
     address[] highLiquidityTokens;
 
     Deploy deploy;
@@ -58,7 +57,6 @@ contract TestDeploy is Script, Test {
         // AutoCompounderFactory-specific
         forwarder = abi.decode(jsonConstants.parseRaw(".v2.Forwarder"), (address));
         voter = abi.decode(jsonConstants.parseRaw(".v2.Voter"), (address));
-        factoryRegistry = abi.decode(jsonConstants.parseRaw(".v2.FactoryRegistry"), (address));
         address[] memory _highLiquidityTokens = abi.decode(jsonConstants.parseRaw(".highLiquidityTokens"), (address[]));
         highLiquidityTokens = new address[](_highLiquidityTokens.length);
         for (uint256 i = 0; i < _highLiquidityTokens.length; i++) {
@@ -78,7 +76,6 @@ contract TestDeploy is Script, Test {
         assertTrue(poolFactory != address(0));
         assertTrue(forwarder != address(0));
         assertTrue(voter != address(0));
-        assertTrue(factoryRegistry != address(0));
         assertTrue(highLiquidityTokens.length > 0);
     }
 
@@ -109,5 +106,8 @@ contract TestDeploy is Script, Test {
         assertEq(deploy.optimizer().velo(), VELO);
         assertEq(deploy.optimizer().factory(), poolFactory);
         assertEq(address(deploy.optimizer().router()), router);
+
+        assertEq(address(deploy.keeperRegistry().owner()), testDeployer);
+        assertTrue(deploy.relayFactoryRegistry().isApproved(address(deploy.autoCompounderFactory())));
     }
 }

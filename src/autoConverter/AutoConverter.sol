@@ -2,15 +2,10 @@
 pragma solidity 0.8.19;
 
 import {IAutoConverter} from "../interfaces/IAutoConverter.sol";
-import {IAutoConverterFactory} from "../interfaces/IAutoConverterFactory.sol";
+import {IRelayFactory} from "../interfaces/IRelayFactory.sol";
 
 import {VelodromeTimeLibrary} from "@velodrome/contracts/libraries/VelodromeTimeLibrary.sol";
 
-import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
-import {IVelo} from "@velodrome/contracts/interfaces/IVelo.sol";
-import {IVoter} from "@velodrome/contracts/interfaces/IVoter.sol";
-import {IVotingEscrow} from "@velodrome/contracts/interfaces/IVotingEscrow.sol";
-import {IRewardsDistributor} from "@velodrome/contracts/interfaces/IRewardsDistributor.sol";
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 
 import {Relay} from "../Relay.sol";
@@ -24,7 +19,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 contract AutoConverter is IAutoConverter, Relay {
     using SafeERC20 for IERC20;
 
-    IAutoConverterFactory public immutable autoConverterFactory;
+    IRelayFactory public immutable autoConverterFactory;
     IRouter public immutable router;
 
     address public token;
@@ -36,9 +31,10 @@ contract AutoConverter is IAutoConverter, Relay {
         address _admin,
         string memory _name,
         address _router,
-        address _token
-    ) Relay(_forwarder, _voter, _admin, _name) {
-        autoConverterFactory = IAutoConverterFactory(_msgSender());
+        address _token,
+        address _relayFactory
+    ) Relay(_forwarder, _voter, _admin, _relayFactory, _name) {
+        autoConverterFactory = IRelayFactory(_msgSender());
         router = IRouter(_router);
         token = _token;
 
@@ -46,12 +42,6 @@ contract AutoConverter is IAutoConverter, Relay {
         // See `ALLOWED_CALLER functions` section for permissions
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(ALLOWED_CALLER, _admin);
-    }
-
-    /// @dev Validate msg.sender is a keeper added by Velodrome team.
-    modifier onlyKeeper(address _sender) {
-        if (!autoConverterFactory.isKeeper(_sender)) revert NotKeeper();
-        _;
     }
 
     /// @dev Keep amountTokenEarned for the epoch synced based on the balance before and after operations
