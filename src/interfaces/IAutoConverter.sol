@@ -9,7 +9,6 @@ interface IAutoConverter {
     error InvalidPath();
     error NotKeeper();
     error SlippageTooHigh();
-    error ZeroAddress();
 
     event SwapTokenToToken(
         address indexed claimer,

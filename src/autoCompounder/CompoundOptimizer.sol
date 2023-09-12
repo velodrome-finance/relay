@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.19;
 
-import {ICompoundOptimizer} from "./interfaces/ICompoundOptimizer.sol";
+import {ICompoundOptimizer} from "../interfaces/ICompoundOptimizer.sol";
 
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 import {IPoolFactory} from "@velodrome/contracts/interfaces/factories/IPoolFactory.sol";

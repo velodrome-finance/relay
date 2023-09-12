@@ -4,9 +4,9 @@ pragma solidity 0.8.19;
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
-import {AutoCompounder} from "src/AutoCompounder.sol";
-import {AutoCompounderFactory} from "src/AutoCompounderFactory.sol";
-import {CompoundOptimizer} from "src/CompoundOptimizer.sol";
+import {AutoCompounder} from "src/autoCompounder/AutoCompounder.sol";
+import {AutoCompounderFactory} from "src/autoCompounder/AutoCompounderFactory.sol";
+import {CompoundOptimizer} from "src/autoCompounder/CompoundOptimizer.sol";
 
 contract Deploy is Script {
     using stdJson for string;

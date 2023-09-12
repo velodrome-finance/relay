@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.19;
 
-import "src/AutoCompounder.sol";
-import "src/CompoundOptimizer.sol";
-import "src/AutoCompounderFactory.sol";
+import "test/RelayFactory.t.sol";
 
-import "@velodrome/test/BaseTest.sol";
+import "src/autoCompounder/AutoCompounder.sol";
+import "src/autoCompounder/CompoundOptimizer.sol";
+import "src/autoCompounder/AutoCompounderFactory.sol";
 
-contract AutoCompounderFactoryTest is BaseTest {
-    uint256 tokenId;
-    uint256 mTokenId;
-
+contract AutoCompounderFactoryTest is RelayFactoryTest {
     AutoCompounderFactory autoCompounderFactory;
     AutoCompounder autoCompounder;
     CompoundOptimizer optimizer;
@@ -38,6 +35,7 @@ contract AutoCompounderFactoryTest is BaseTest {
             address(factoryRegistry),
             new address[](0)
         );
+        relayFactory = RelayFactory(autoCompounderFactory);
     }
 
     function testCreateAutoCompounderFactoryWithHighLiquidityTokens() public {
@@ -57,13 +55,13 @@ contract AutoCompounderFactoryTest is BaseTest {
     }
 
     function testCannotCreateAutoCompounderWithNoAdmin() public {
-        vm.expectRevert(IAutoCompounderFactory.ZeroAddress.selector);
-        autoCompounderFactory.createAutoCompounder(address(0), 1, "");
+        vm.expectRevert(IRelayFactory.ZeroAddress.selector);
+        autoCompounderFactory.createRelay(address(0), 1, "", new bytes(0));
     }
 
     function testCannotCreateAutoCompounderWithZeroTokenId() public {
-        vm.expectRevert(IAutoCompounderFactory.TokenIdZero.selector);
-        autoCompounderFactory.createAutoCompounder(address(1), 0, "");
+        vm.expectRevert(IRelayFactory.TokenIdZero.selector);
+        autoCompounderFactory.createRelay(address(1), 0, "", new bytes(0));
     }
 
     function testCannotCreateAutoCompounderIfNotApprovedSender() public {
@@ -73,37 +71,37 @@ contract AutoCompounderFactoryTest is BaseTest {
         escrow.approve(address(autoCompounderFactory), mTokenId);
         escrow.setApprovalForAll(address(autoCompounderFactory), true);
         vm.stopPrank();
-        vm.expectRevert(IAutoCompounderFactory.TokenIdNotApproved.selector);
+        vm.expectRevert(IRelayFactory.TokenIdNotApproved.selector);
         vm.prank(address(owner2));
-        autoCompounderFactory.createAutoCompounder(address(1), mTokenId, "");
+        autoCompounderFactory.createRelay(address(1), mTokenId, "", new bytes(0));
     }
 
     function testCannotCreateAutoCompounderIfTokenNotManaged() public {
         VELO.approve(address(escrow), TOKEN_1);
         tokenId = escrow.createLock(TOKEN_1, MAXTIME);
-        vm.expectRevert(IAutoCompounderFactory.TokenIdNotManaged.selector);
-        autoCompounderFactory.createAutoCompounder(address(1), tokenId, ""); // normal
+        vm.expectRevert(IRelayFactory.TokenIdNotManaged.selector);
+        autoCompounderFactory.createRelay(address(1), tokenId, "", new bytes(0)); // normal
 
         vm.prank(escrow.allowedManager());
         mTokenId = escrow.createManagedLockFor(address(owner));
         voter.depositManaged(tokenId, mTokenId);
-        vm.expectRevert(IAutoCompounderFactory.TokenIdNotManaged.selector);
-        autoCompounderFactory.createAutoCompounder(address(1), tokenId, ""); // locked
+        vm.expectRevert(IRelayFactory.TokenIdNotManaged.selector);
+        autoCompounderFactory.createRelay(address(1), tokenId, "", new bytes(0)); // locked
     }
 
     function testCreateAutoCompounder() public {
         vm.prank(escrow.allowedManager());
         mTokenId = escrow.createManagedLockFor(address(owner));
 
-        assertEq(autoCompounderFactory.autoCompoundersLength(), 0);
+        assertEq(autoCompounderFactory.relaysLength(), 0);
 
         vm.startPrank(address(owner));
         escrow.approve(address(autoCompounderFactory), mTokenId);
-        autoCompounder = AutoCompounder(autoCompounderFactory.createAutoCompounder(address(owner), mTokenId, ""));
+        autoCompounder = AutoCompounder(autoCompounderFactory.createRelay(address(owner), mTokenId, "", new bytes(0)));
 
         assertFalse(address(autoCompounder) == address(0));
-        assertEq(autoCompounderFactory.autoCompoundersLength(), 1);
-        address[] memory autoCompounders = autoCompounderFactory.autoCompounders();
+        assertEq(autoCompounderFactory.relaysLength(), 1);
+        address[] memory autoCompounders = autoCompounderFactory.relays();
         assertEq(address(autoCompounder), autoCompounders[0]);
         assertEq(escrow.balanceOf(address(autoCompounder)), 1);
         assertEq(escrow.ownerOf(mTokenId), address(autoCompounder));
@@ -126,18 +124,18 @@ contract AutoCompounderFactoryTest is BaseTest {
         vm.prank(escrow.allowedManager());
         mTokenId = escrow.createManagedLockFor(address(owner));
 
-        assertEq(autoCompounderFactory.autoCompoundersLength(), 0);
+        assertEq(autoCompounderFactory.relaysLength(), 0);
 
         vm.startPrank(address(owner));
         escrow.setApprovalForAll(address(autoCompounderFactory), true);
         escrow.approve(address(owner2), mTokenId);
         vm.stopPrank();
         vm.prank(address(owner2));
-        autoCompounder = AutoCompounder(autoCompounderFactory.createAutoCompounder(address(owner), mTokenId, ""));
+        autoCompounder = AutoCompounder(autoCompounderFactory.createRelay(address(owner), mTokenId, "", new bytes(0)));
 
         assertFalse(address(autoCompounder) == address(0));
-        assertEq(autoCompounderFactory.autoCompoundersLength(), 1);
-        address[] memory autoCompounders = autoCompounderFactory.autoCompounders();
+        assertEq(autoCompounderFactory.relaysLength(), 1);
+        address[] memory autoCompounders = autoCompounderFactory.relays();
         assertEq(address(autoCompounder), autoCompounders[0]);
         assertEq(escrow.balanceOf(address(autoCompounder)), 1);
         assertEq(escrow.ownerOf(mTokenId), address(autoCompounder));
@@ -148,18 +146,18 @@ contract AutoCompounderFactoryTest is BaseTest {
         vm.prank(escrow.allowedManager());
         mTokenId = escrow.createManagedLockFor(address(owner));
 
-        assertEq(autoCompounderFactory.autoCompoundersLength(), 0);
+        assertEq(autoCompounderFactory.relaysLength(), 0);
 
         vm.startPrank(address(owner));
         escrow.approve(address(autoCompounderFactory), mTokenId);
         escrow.setApprovalForAll(address(owner2), true);
         vm.stopPrank();
         vm.prank(address(owner2));
-        autoCompounder = AutoCompounder(autoCompounderFactory.createAutoCompounder(address(owner), mTokenId, ""));
+        autoCompounder = AutoCompounder(autoCompounderFactory.createRelay(address(owner), mTokenId, "", new bytes(0)));
 
         assertFalse(address(autoCompounder) == address(0));
-        assertEq(autoCompounderFactory.autoCompoundersLength(), 1);
-        address[] memory autoCompounders = autoCompounderFactory.autoCompounders();
+        assertEq(autoCompounderFactory.relaysLength(), 1);
+        address[] memory autoCompounders = autoCompounderFactory.relays();
         assertEq(address(autoCompounder), autoCompounders[0]);
         assertEq(escrow.balanceOf(address(autoCompounder)), 1);
         assertEq(escrow.ownerOf(mTokenId), address(autoCompounder));
@@ -169,13 +167,13 @@ contract AutoCompounderFactoryTest is BaseTest {
     function testCannotAddHighLiquidityTokenIfNotTeam() public {
         vm.startPrank(address(owner2));
         assertTrue(msg.sender != factoryRegistry.owner());
-        vm.expectRevert(IAutoCompounderFactory.NotTeam.selector);
+        vm.expectRevert(IRelayFactory.NotTeam.selector);
         autoCompounderFactory.addHighLiquidityToken(address(USDC));
     }
 
     function testCannotAddHighLiquidityTokenIfZeroAddress() public {
         vm.prank(factoryRegistry.owner());
-        vm.expectRevert(IAutoCompounderFactory.ZeroAddress.selector);
+        vm.expectRevert(IRelayFactory.ZeroAddress.selector);
         autoCompounderFactory.addHighLiquidityToken(address(0));
     }
 
@@ -197,69 +195,5 @@ contract AutoCompounderFactoryTest is BaseTest {
         highLiquidityTokens[0] = address(USDC);
         assertEq(autoCompounderFactory.highLiquidityTokens(), highLiquidityTokens);
         assertEq(autoCompounderFactory.highLiquidityTokensLength(), 1);
-    }
-
-    function testCannotAddKeeperIfNotTeam() public {
-        vm.startPrank(address(owner2));
-        assertTrue(msg.sender != factoryRegistry.owner());
-        vm.expectRevert(IAutoCompounderFactory.NotTeam.selector);
-        autoCompounderFactory.addKeeper(address(owner2));
-    }
-
-    function testCannotAddKeeperIfZeroAddress() public {
-        vm.prank(factoryRegistry.owner());
-        vm.expectRevert(IAutoCompounder.ZeroAddress.selector);
-        autoCompounderFactory.addKeeper(address(0));
-    }
-
-    function testCannotAddKeeperIfKeeperAlreadyExists() public {
-        vm.startPrank(factoryRegistry.owner());
-        autoCompounderFactory.addKeeper(address(owner));
-        vm.expectRevert(IAutoCompounderFactory.KeeperAlreadyExists.selector);
-        autoCompounderFactory.addKeeper(address(owner));
-    }
-
-    function testAddKeeper() public {
-        assertEq(autoCompounderFactory.keepersLength(), 0);
-        assertEq(autoCompounderFactory.keepers(), new address[](0));
-        assertFalse(autoCompounderFactory.isKeeper(address(owner)));
-
-        vm.prank(factoryRegistry.owner());
-        autoCompounderFactory.addKeeper(address(owner));
-
-        assertEq(autoCompounderFactory.keepersLength(), 1);
-        address[] memory keepers = autoCompounderFactory.keepers();
-        assertEq(keepers.length, 1);
-        assertEq(keepers[0], address(owner));
-        assertTrue(autoCompounderFactory.isKeeper(address(owner)));
-    }
-
-    function testCannotRemoveKeeperIfNotTeam() public {
-        vm.prank(address(owner2));
-        vm.expectRevert(IAutoCompounderFactory.NotTeam.selector);
-        autoCompounderFactory.removeKeeper(address(owner));
-    }
-
-    function testCannotRemoveKeeperIfZeroAddress() public {
-        vm.prank(factoryRegistry.owner());
-        vm.expectRevert(IAutoCompounderFactory.ZeroAddress.selector);
-        autoCompounderFactory.removeKeeper(address(0));
-    }
-
-    function testCannotRemoveKeeperIfKeeperDoesntExist() public {
-        vm.prank(factoryRegistry.owner());
-        vm.expectRevert(IAutoCompounderFactory.KeeperDoesNotExist.selector);
-        autoCompounderFactory.removeKeeper(address(owner));
-    }
-
-    function testRemoveKeeper() public {
-        vm.startPrank(factoryRegistry.owner());
-
-        autoCompounderFactory.addKeeper(address(owner));
-        autoCompounderFactory.removeKeeper(address(owner));
-
-        assertEq(autoCompounderFactory.keepersLength(), 0);
-        assertEq(autoCompounderFactory.keepers(), new address[](0));
-        assertFalse(autoCompounderFactory.isKeeper(address(owner)));
     }
 }

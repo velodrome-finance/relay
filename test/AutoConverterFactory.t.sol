@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.19;
 
+import "test/RelayFactory.t.sol";
+
 import "src/autoConverter/AutoConverter.sol";
 import "src/autoConverter/AutoConverterFactory.sol";
 
-import "@velodrome/test/BaseTest.sol";
-
-contract AutoConverterFactoryTest is BaseTest {
-    uint256 tokenId;
-    uint256 mTokenId;
-
+contract AutoConverterFactoryTest is RelayFactoryTest {
     AutoConverterFactory autoConverterFactory;
     AutoConverter autoConverter;
 
@@ -26,16 +23,17 @@ contract AutoConverterFactoryTest is BaseTest {
             address(router),
             address(factoryRegistry)
         );
+        relayFactory = RelayFactory(autoConverterFactory);
     }
 
     function testCannotCreateAutoConverterWithNoAdmin() public {
-        vm.expectRevert(IAutoConverterFactory.ZeroAddress.selector);
-        autoConverterFactory.createAutoConverter(address(0), 1, "", address(USDC));
+        vm.expectRevert(IRelayFactory.ZeroAddress.selector);
+        autoConverterFactory.createRelay(address(0), 1, "", abi.encode(address(USDC)));
     }
 
     function testCannotCreateAutoConverterWithZeroTokenId() public {
-        vm.expectRevert(IAutoConverterFactory.TokenIdZero.selector);
-        autoConverterFactory.createAutoConverter(address(1), 0, "", address(USDC));
+        vm.expectRevert(IRelayFactory.TokenIdZero.selector);
+        autoConverterFactory.createRelay(address(1), 0, "", abi.encode(address(USDC)));
     }
 
     function testCannotCreateAutoConverterIfNotApprovedSender() public {
@@ -45,39 +43,39 @@ contract AutoConverterFactoryTest is BaseTest {
         escrow.approve(address(autoConverterFactory), mTokenId);
         escrow.setApprovalForAll(address(autoConverterFactory), true);
         vm.stopPrank();
-        vm.expectRevert(IAutoConverterFactory.TokenIdNotApproved.selector);
+        vm.expectRevert(IRelayFactory.TokenIdNotApproved.selector);
         vm.prank(address(owner2));
-        autoConverterFactory.createAutoConverter(address(1), mTokenId, "", address(USDC));
+        autoConverterFactory.createRelay(address(1), mTokenId, "", abi.encode(address(USDC)));
     }
 
     function testCannotCreateAutoConverterIfTokenNotManaged() public {
         VELO.approve(address(escrow), TOKEN_1);
         tokenId = escrow.createLock(TOKEN_1, MAXTIME);
-        vm.expectRevert(IAutoConverterFactory.TokenIdNotManaged.selector);
-        autoConverterFactory.createAutoConverter(address(1), tokenId, "", address(USDC)); // normal
+        vm.expectRevert(IRelayFactory.TokenIdNotManaged.selector);
+        bytes memory data = abi.encode(address(USDC));
+        autoConverterFactory.createRelay(address(1), tokenId, "", data); // normal
 
         vm.prank(escrow.allowedManager());
         mTokenId = escrow.createManagedLockFor(address(owner));
         voter.depositManaged(tokenId, mTokenId);
-        vm.expectRevert(IAutoConverterFactory.TokenIdNotManaged.selector);
-        autoConverterFactory.createAutoConverter(address(1), tokenId, "", address(USDC)); // locked
+        vm.expectRevert(IRelayFactory.TokenIdNotManaged.selector);
+        autoConverterFactory.createRelay(address(1), tokenId, "", data); // locked
     }
 
     function testCreateAutoConverter() public {
         vm.prank(escrow.allowedManager());
         mTokenId = escrow.createManagedLockFor(address(owner));
 
-        assertEq(autoConverterFactory.autoConvertersLength(), 0);
+        assertEq(autoConverterFactory.relaysLength(), 0);
 
         vm.startPrank(address(owner));
         escrow.approve(address(autoConverterFactory), mTokenId);
-        autoConverter = AutoConverter(
-            autoConverterFactory.createAutoConverter(address(owner), mTokenId, "", address(USDC))
-        );
+        bytes memory data = abi.encode(address(USDC));
+        autoConverter = AutoConverter(autoConverterFactory.createRelay(address(owner), mTokenId, "", data));
 
         assertFalse(address(autoConverter) == address(0));
-        assertEq(autoConverterFactory.autoConvertersLength(), 1);
-        address[] memory autoConverters = autoConverterFactory.autoConverters();
+        assertEq(autoConverterFactory.relaysLength(), 1);
+        address[] memory autoConverters = autoConverterFactory.relays();
         assertEq(address(autoConverter), autoConverters[0]);
         assertEq(escrow.balanceOf(address(autoConverter)), 1);
         assertEq(escrow.ownerOf(mTokenId), address(autoConverter));
@@ -99,20 +97,19 @@ contract AutoConverterFactoryTest is BaseTest {
         vm.prank(escrow.allowedManager());
         mTokenId = escrow.createManagedLockFor(address(owner));
 
-        assertEq(autoConverterFactory.autoConvertersLength(), 0);
+        assertEq(autoConverterFactory.relaysLength(), 0);
 
         vm.startPrank(address(owner));
         escrow.setApprovalForAll(address(autoConverterFactory), true);
         escrow.approve(address(owner2), mTokenId);
         vm.stopPrank();
         vm.prank(address(owner2));
-        autoConverter = AutoConverter(
-            autoConverterFactory.createAutoConverter(address(owner), mTokenId, "", address(USDC))
-        );
+        bytes memory data = abi.encode(address(USDC));
+        autoConverter = AutoConverter(autoConverterFactory.createRelay(address(owner), mTokenId, "", data));
 
         assertFalse(address(autoConverter) == address(0));
-        assertEq(autoConverterFactory.autoConvertersLength(), 1);
-        address[] memory autoConverters = autoConverterFactory.autoConverters();
+        assertEq(autoConverterFactory.relaysLength(), 1);
+        address[] memory autoConverters = autoConverterFactory.relays();
         assertEq(address(autoConverter), autoConverters[0]);
         assertEq(escrow.balanceOf(address(autoConverter)), 1);
         assertEq(escrow.ownerOf(mTokenId), address(autoConverter));
@@ -123,87 +120,22 @@ contract AutoConverterFactoryTest is BaseTest {
         vm.prank(escrow.allowedManager());
         mTokenId = escrow.createManagedLockFor(address(owner));
 
-        assertEq(autoConverterFactory.autoConvertersLength(), 0);
+        assertEq(autoConverterFactory.relaysLength(), 0);
 
         vm.startPrank(address(owner));
         escrow.approve(address(autoConverterFactory), mTokenId);
         escrow.setApprovalForAll(address(owner2), true);
         vm.stopPrank();
         vm.prank(address(owner2));
-        autoConverter = AutoConverter(
-            autoConverterFactory.createAutoConverter(address(owner), mTokenId, "", address(USDC))
-        );
+        bytes memory data = abi.encode(address(USDC));
+        autoConverter = AutoConverter(autoConverterFactory.createRelay(address(owner), mTokenId, "", data));
 
         assertFalse(address(autoConverter) == address(0));
-        assertEq(autoConverterFactory.autoConvertersLength(), 1);
-        address[] memory autoConverters = autoConverterFactory.autoConverters();
+        assertEq(autoConverterFactory.relaysLength(), 1);
+        address[] memory autoConverters = autoConverterFactory.relays();
         assertEq(address(autoConverter), autoConverters[0]);
         assertEq(escrow.balanceOf(address(autoConverter)), 1);
         assertEq(escrow.ownerOf(mTokenId), address(autoConverter));
         assertEq(autoConverter.mTokenId(), mTokenId);
-    }
-
-    function testCannotAddKeeperIfNotTeam() public {
-        vm.startPrank(address(owner2));
-        assertTrue(msg.sender != factoryRegistry.owner());
-        vm.expectRevert(IAutoConverterFactory.NotTeam.selector);
-        autoConverterFactory.addKeeper(address(owner2));
-    }
-
-    function testCannotAddKeeperIfZeroAddress() public {
-        vm.prank(factoryRegistry.owner());
-        vm.expectRevert(IAutoConverter.ZeroAddress.selector);
-        autoConverterFactory.addKeeper(address(0));
-    }
-
-    function testCannotAddKeeperIfKeeperAlreadyExists() public {
-        vm.startPrank(factoryRegistry.owner());
-        autoConverterFactory.addKeeper(address(owner));
-        vm.expectRevert(IAutoConverterFactory.KeeperAlreadyExists.selector);
-        autoConverterFactory.addKeeper(address(owner));
-    }
-
-    function testAddKeeper() public {
-        assertEq(autoConverterFactory.keepersLength(), 0);
-        assertEq(autoConverterFactory.keepers(), new address[](0));
-        assertFalse(autoConverterFactory.isKeeper(address(owner)));
-
-        vm.prank(factoryRegistry.owner());
-        autoConverterFactory.addKeeper(address(owner));
-
-        assertEq(autoConverterFactory.keepersLength(), 1);
-        address[] memory keepers = autoConverterFactory.keepers();
-        assertEq(keepers.length, 1);
-        assertEq(keepers[0], address(owner));
-        assertTrue(autoConverterFactory.isKeeper(address(owner)));
-    }
-
-    function testCannotRemoveKeeperIfNotTeam() public {
-        vm.prank(address(owner2));
-        vm.expectRevert(IAutoConverterFactory.NotTeam.selector);
-        autoConverterFactory.removeKeeper(address(owner));
-    }
-
-    function testCannotRemoveKeeperIfZeroAddress() public {
-        vm.prank(factoryRegistry.owner());
-        vm.expectRevert(IAutoConverterFactory.ZeroAddress.selector);
-        autoConverterFactory.removeKeeper(address(0));
-    }
-
-    function testCannotRemoveKeeperIfKeeperDoesntExist() public {
-        vm.prank(factoryRegistry.owner());
-        vm.expectRevert(IAutoConverterFactory.KeeperDoesNotExist.selector);
-        autoConverterFactory.removeKeeper(address(owner));
-    }
-
-    function testRemoveKeeper() public {
-        vm.startPrank(factoryRegistry.owner());
-
-        autoConverterFactory.addKeeper(address(owner));
-        autoConverterFactory.removeKeeper(address(owner));
-
-        assertEq(autoConverterFactory.keepersLength(), 0);
-        assertEq(autoConverterFactory.keepers(), new address[](0));
-        assertFalse(autoConverterFactory.isKeeper(address(owner)));
     }
 }

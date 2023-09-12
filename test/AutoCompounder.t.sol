@@ -2,9 +2,9 @@
 pragma solidity 0.8.19;
 
 import "src/Relay.sol";
-import "src/AutoCompounder.sol";
-import "src/CompoundOptimizer.sol";
-import "src/AutoCompounderFactory.sol";
+import "src/autoCompounder/AutoCompounder.sol";
+import "src/autoCompounder/CompoundOptimizer.sol";
+import "src/autoCompounder/AutoCompounderFactory.sol";
 
 import "@velodrome/test/BaseTest.sol";
 
@@ -63,7 +63,7 @@ contract AutoCompounderTest is BaseTest {
             new address[](0)
         );
         escrow.approve(address(autoCompounderFactory), mTokenId);
-        autoCompounder = AutoCompounder(autoCompounderFactory.createAutoCompounder(address(owner), mTokenId, ""));
+        autoCompounder = AutoCompounder(autoCompounderFactory.createRelay(address(owner), mTokenId, "", new bytes(0)));
 
         skipToNextEpoch(1 hours + 1);
 
@@ -621,7 +621,9 @@ contract AutoCompounderTest is BaseTest {
         escrow.setApprovalForAll(address(owner2), true);
         vm.stopPrank();
         vm.prank(address(owner2));
-        autoCompounder = AutoCompounder(autoCompounderFactory.createAutoCompounder(address(owner), mTokenId, "Test"));
+        autoCompounder = AutoCompounder(
+            autoCompounderFactory.createRelay(address(owner), mTokenId, "Test", new bytes(0))
+        );
 
         assertEq(autoCompounder.name(), "Test");
 
@@ -634,7 +636,7 @@ contract AutoCompounderTest is BaseTest {
         escrow.setApprovalForAll(address(owner2), true);
         vm.stopPrank();
         vm.prank(address(owner2));
-        autoCompounder = AutoCompounder(autoCompounderFactory.createAutoCompounder(address(owner), mTokenId, ""));
+        autoCompounder = AutoCompounder(autoCompounderFactory.createRelay(address(owner), mTokenId, "", new bytes(0)));
 
         assertEq(autoCompounder.name(), "");
     }

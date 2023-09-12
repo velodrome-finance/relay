@@ -52,7 +52,7 @@ contract AutoConverterTest is BaseTest {
         );
         escrow.approve(address(autoConverterFactory), mTokenId);
         autoConverter = AutoConverter(
-            autoConverterFactory.createAutoConverter(address(owner), mTokenId, "AutoConverter", address(USDC))
+            autoConverterFactory.createRelay(address(owner), mTokenId, "AutoConverter", abi.encode(address(USDC)))
         );
 
         skipToNextEpoch(1 hours + 1);

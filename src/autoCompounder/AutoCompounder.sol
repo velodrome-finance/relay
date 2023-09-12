@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.19;
 
-import {ICompoundOptimizer} from "./interfaces/ICompoundOptimizer.sol";
-import {IAutoCompounder} from "./interfaces/IAutoCompounder.sol";
-import {IAutoCompounderFactory} from "./interfaces/IAutoCompounderFactory.sol";
+import {ICompoundOptimizer} from "../interfaces/ICompoundOptimizer.sol";
+import {IAutoCompounder} from "../interfaces/IAutoCompounder.sol";
+import {IAutoCompounderFactory} from "../interfaces/IAutoCompounderFactory.sol";
 
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 import {IVelo} from "@velodrome/contracts/interfaces/IVelo.sol";
@@ -13,7 +13,7 @@ import {IRewardsDistributor} from "@velodrome/contracts/interfaces/IRewardsDistr
 import {VelodromeTimeLibrary} from "@velodrome/contracts/libraries/VelodromeTimeLibrary.sol";
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 
-import {Relay} from "./Relay.sol";
+import {Relay} from "../Relay.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
