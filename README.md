@@ -28,7 +28,7 @@ There are degrees of trust and access given to various groups.  The groups are:
 Can be any EOA or contract.  Are allowed to claim rewards and compound within the last 24 hours of an epoch.  Swap routes are determined using a fixed optimizer contract, although callers can provide their own custom route provided there is a better return.  The optional swap route provided must only route through high liquidity tokens, as added by team.  Public callers are rewarded based on the amount compounded - they receive a minimum of either (a) 1% of the VELO converted from swaps (rounded down) or (b) the constant VELO reward set by the team.
 
 ### Keepers
-Addresses authorized by Velodrome team to claim rewards and compound after the 24 hours of an epoch flip.  Keepers are trusted to swap rewarded tokens into VELO using the amounts and routes they determine, assumed to be the best rate, which is then deposited into the (m)veNFT.
+Addresses authorized by Velodrome team to claim rewards and compound.  Keepers are trusted to swap rewarded tokens into VELO using the amounts and routes they determine, assumed to be the best rate, which is then deposited into the (m)veNFT.
 
 ### Allowed Callers
 Addresses authorized by the AutoCompounder admin to vote for gauges and send additional VELO rewards to the (m)veNFT to be distributed among veNFTs who have locked into the (m)veNFT.
@@ -55,7 +55,7 @@ See PERMISSIONS.md for additional clarity.  The team can set the VELO reward amo
 | Who | First 24 hours | Middle 5 days |  Last 24 Hours
 |---|---|---|---|
 | Public | | | X | | X |
-| Keeper | | X | X |
+| Keeper | X | X | X |
 | Allowed Callers | X | X | X |
 | Admin | X |  |  |
 | Team | X | X | X

@@ -52,14 +52,10 @@ contract AutoCompounder is IAutoCompounder, Relay {
         _;
     }
 
-    modifier onlyFirstDayOfEpoch(bool _yes) {
+    modifier onlyFirstDayOfEpoch() {
         uint256 timestamp = block.timestamp;
         uint256 firstDayEnd = timestamp - (timestamp % WEEK) + 1 days;
-        if (_yes) {
-            if (timestamp >= firstDayEnd) revert TooLate();
-        } else {
-            if (timestamp < firstDayEnd) revert TooSoon();
-        }
+        if (timestamp >= firstDayEnd) revert TooLate();
         _;
     }
 
@@ -184,7 +180,7 @@ contract AutoCompounder is IAutoCompounder, Relay {
     function sweep(
         address[] calldata _tokensToSweep,
         address[] calldata _recipients
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) onlyFirstDayOfEpoch(true) nonReentrant {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) onlyFirstDayOfEpoch nonReentrant {
         uint256 length = _tokensToSweep.length;
         if (length != _recipients.length) revert UnequalLengths();
         for (uint256 i = 0; i < length; i++) {
@@ -209,7 +205,7 @@ contract AutoCompounder is IAutoCompounder, Relay {
         IRouter.Route[] calldata _routes,
         uint256 _amountIn,
         uint256 _amountOutMin
-    ) external onlyKeeper(msg.sender) onlyFirstDayOfEpoch(false) nonReentrant {
+    ) external onlyKeeper(msg.sender) nonReentrant {
         if (_amountIn == 0) revert AmountInZero();
         if (_amountOutMin == 0) revert SlippageTooHigh();
         if (_routes.length < 1 || _routes[_routes.length - 1].to != address(velo)) revert InvalidPath();

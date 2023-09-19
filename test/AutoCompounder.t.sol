@@ -615,13 +615,6 @@ contract AutoCompounderTest is BaseTest {
         assertEq(USDC.balanceOf(address(owner2)), balanceBefore + USDC_1);
     }
 
-    function testCannotSwapKeeperIfWithinFirstDayOfEpoch() public {
-        skipToNextEpoch(1 days - 1);
-
-        vm.expectRevert(IAutoCompounder.TooSoon.selector);
-        autoCompounder.swapTokenToVELOKeeper(new IRouter.Route[](0), 0, 0);
-    }
-
     function testCannotSwapKeeperIfNotKeeper() public {
         vm.startPrank(address(owner2));
         vm.expectRevert(IRelay.NotKeeper.selector);
