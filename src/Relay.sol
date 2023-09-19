@@ -31,6 +31,8 @@ abstract contract Relay is IRelay, ERC2771Context, ERC721Holder, ReentrancyGuard
     IRewardsDistributor public immutable distributor;
     IRelayFactory public relayFactory;
 
+    uint256 public keeperLastRun;
+
     constructor(
         address _forwarder,
         address _voter,

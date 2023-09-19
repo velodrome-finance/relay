@@ -20,6 +20,9 @@ interface IRelay {
     /// @notice Address of token to convert into
     function token() external view returns (address);
 
+    /// @notice Timestamp of last keeper run
+    function keeperLastRun() external view returns (uint256);
+
     /// @notice Initialize the Relay by setting the (m)tokenId within the contract
     /// @dev The (m)tokenId must be owned by the Relay to initialize
     /// @param _mTokenId Unique identifier of the managed veNFT

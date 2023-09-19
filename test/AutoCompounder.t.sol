@@ -114,6 +114,10 @@ contract AutoCompounderTest is BaseTest {
         }
     }
 
+    function testKeeperLastRunSetup() public {
+        assertEq(autoCompounder.keeperLastRun(), 0);
+    }
+
     function testManagedTokenID() public {
         assertEq(autoCompounder.mTokenId(), mTokenId);
         assertEq(escrow.ownerOf(mTokenId), address(autoCompounder));
@@ -496,6 +500,7 @@ contract AutoCompounderTest is BaseTest {
         calls[1] = abi.encodeWithSelector(autoCompounder.compound.selector);
         autoCompounder.multicall(calls);
 
+        assertEq(autoCompounder.keeperLastRun(), block.timestamp);
         // no reward given to caller this time- full amount deposited into mTokenId
         assertEq(VELO.balanceOf(address(owner)), veloBalanceBefore);
         assertEq(escrow.balanceOfNFT(mTokenId), balanceBefore + amountOut);

@@ -95,6 +95,7 @@ contract AutoConverter is IAutoConverter, Relay {
             address(this),
             block.timestamp
         );
+        keeperLastRun = block.timestamp;
 
         emit SwapTokenToToken(_msgSender(), from, amountIn, amountsOut[amountsOut.length - 1], routes);
     }

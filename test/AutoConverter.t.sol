@@ -156,6 +156,10 @@ contract AutoConverterTest is BaseTest {
         }
     }
 
+    function testLastKeeperRunSetup() public {
+        assertEq(autoConverter.keeperLastRun(), 0);
+    }
+
     function testClaimAndConvertClaimRebaseOnly() public {
         address[] memory pools = new address[](2);
         pools[0] = address(pool);
@@ -218,6 +222,7 @@ contract AutoConverterTest is BaseTest {
 
         uint256 balanceBefore = USDC.balanceOf(address(autoConverter));
         autoConverter.swapTokenToToken(routes, amountIn, amountOutMin);
+        assertEq(autoConverter.keeperLastRun(), block.timestamp);
         assertGt(USDC.balanceOf(address(autoConverter)), balanceBefore);
         assertEq(
             autoConverter.amountTokenEarned(VelodromeTimeLibrary.epochStart(block.timestamp)),

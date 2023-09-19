@@ -223,6 +223,7 @@ contract AutoCompounder is IAutoCompounder, Relay {
             address(this),
             block.timestamp
         );
+        keeperLastRun = block.timestamp;
 
         emit SwapTokenToVELOKeeper(_msgSender(), from, _amountIn, amountsOut[amountsOut.length - 1], _routes);
     }
