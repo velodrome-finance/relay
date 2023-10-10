@@ -26,13 +26,6 @@ interface IAutoCompounder {
         uint256 amountOut,
         IRouter.Route[] routes
     );
-    event SwapTokenToVELOKeeper(
-        address indexed claimer,
-        address indexed token,
-        uint256 amountIn,
-        uint256 amountOut,
-        IRouter.Route[] routes
-    );
     event Sweep(address indexed token, address indexed claimer, address indexed recipient, uint256 amount);
 
     // -------------------------------------------------
@@ -40,13 +33,8 @@ interface IAutoCompounder {
     // -------------------------------------------------
 
     /// @notice Swap token held by the autoCompounder into VELO using the optimal route determined by
-    ///             the CompoundOptimizer
-    ///         Publicly callable in the final 24 hours before the epoch flip
-    /// @param _tokenToSwap .
-    /// @param _slippage .
-    function swapTokenToVELO(address _tokenToSwap, uint256 _slippage) external;
-
-    /// @notice Same as swapTokensToVELO with an additional argument of a user-provided swap route
+    ///         the CompoundOptimizer unless the user-provided swap route has a better rate
+    ///         Publicly callable in the final 24 hours before the epoch flip or by an authorized keeper starting the 2nd hour of an epoch or an admin
     /// @dev Optional routes are provided when the optional amountOut exceeds the amountOut calculated by CompoundOptimizer
     function swapTokenToVELOWithOptionalRoute(
         address _tokenToSwap,
@@ -79,18 +67,4 @@ interface IAutoCompounder {
     /// @param _tokensToSweep   Addresses of tokens to sweep
     /// @param _recipients      Addresses of recipients to receive the swept tokens
     function sweep(address[] calldata _tokensToSweep, address[] calldata _recipients) external;
-
-    // -------------------------------------------------
-    // Keeper functions
-    // -------------------------------------------------
-
-    /// @notice Swap a token into VELO as called by an authorized keeper
-    ///         Only callable by keepers added by Owner within AutoCompounderFactory.
-    ///         Only callable 24 hours after the epoch flip
-    ///         Swapping is done with routes and amount swapped determined by the keeper.
-    /// @dev _amountIn and _amountOutMin cannot be 0.
-    /// @param _routes          Array for which swap routes to execute
-    /// @param _amountIn        Amount of token in for each swap route
-    /// @param _amountOutMin    Minimum amount of token received for each swap route
-    function swapTokenToVELOKeeper(IRouter.Route[] calldata _routes, uint256 _amountIn, uint256 _amountOutMin) external;
 }

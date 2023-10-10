@@ -174,8 +174,9 @@ contract AutoCompounderTest is BaseTest {
         // Attempt swapping into VELO - should revert
         address tokenToSwap = address(tokenA);
         uint256 slippage = 0;
+        IRouter.Route[] memory optionalRoute = new IRouter.Route[](0);
         vm.expectRevert(IAutoCompounder.NoRouteFound.selector);
-        autoCompounder.swapTokenToVELO(tokenToSwap, slippage);
+        autoCompounder.swapTokenToVELOWithOptionalRoute(tokenToSwap, slippage, optionalRoute);
 
         // Cannot swap for a token that doesn't have a pool
         IERC20 tokenC = IERC20(new MockERC20("Token C", "C", 18));
@@ -185,7 +186,7 @@ contract AutoCompounderTest is BaseTest {
 
         // Attempt swapping into VELO - should revert
         vm.expectRevert(IAutoCompounder.NoRouteFound.selector);
-        autoCompounder.swapTokenToVELO(tokenToSwap, slippage);
+        autoCompounder.swapTokenToVELOWithOptionalRoute(tokenToSwap, slippage, optionalRoute);
     }
 
     function testSwapToVELOAndCompoundIfCompoundRewardAmount() public {
@@ -201,10 +202,20 @@ contract AutoCompounderTest is BaseTest {
         // Random user calls swapToVELO() for each token and then claims reward
         vm.startPrank(address(owner4));
         uint256 slippage = 500;
+        IRouter.Route[] memory optionalRoute = new IRouter.Route[](0);
         bytes[] memory calls = new bytes[](4);
-        calls[0] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(USDC), slippage));
-        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(FRAX), slippage));
-        calls[2] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(DAI), slippage));
+        calls[0] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(USDC), slippage, optionalRoute)
+        );
+        calls[1] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(FRAX), slippage, optionalRoute)
+        );
+        calls[2] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(DAI), slippage, optionalRoute)
+        );
         calls[3] = abi.encodeWithSelector(autoCompounder.rewardAndCompound.selector);
         autoCompounder.multicall(calls);
 
@@ -245,10 +256,20 @@ contract AutoCompounderTest is BaseTest {
         // Random user calls swapToVELO() for each token and then claims reward
         vm.startPrank(address(owner4));
         uint256 slippage = 500;
+        IRouter.Route[] memory optionalRoute = new IRouter.Route[](0);
         bytes[] memory calls = new bytes[](4);
-        calls[0] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(USDC), slippage));
-        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(WETH), slippage));
-        calls[2] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(DAI), slippage));
+        calls[0] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(USDC), slippage, optionalRoute)
+        );
+        calls[1] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(WETH), slippage, optionalRoute)
+        );
+        calls[2] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(DAI), slippage, optionalRoute)
+        );
         calls[3] = abi.encodeWithSelector(autoCompounder.rewardAndCompound.selector);
         autoCompounder.multicall(calls);
 
@@ -481,6 +502,9 @@ contract AutoCompounderTest is BaseTest {
     }
 
     function testSwapTokenToVELOAndCompoundKeeper() public {
+        address randomKeeper = address(0x123321);
+        keeperRegistry.approve(address(randomKeeper));
+
         uint256 amount = TOKEN_1 / 100;
         deal(address(WETH), address(autoCompounder), amount);
 
@@ -493,11 +517,12 @@ contract AutoCompounderTest is BaseTest {
         uint256 amountOut = amountsOut[amountsOut.length - 1];
         assertGt(amountOut, 0);
 
-        uint256 amountIn = amount;
-        uint256 amountOutMin = 1;
         bytes[] memory calls = new bytes[](2);
-        calls[0] = abi.encodeCall(autoCompounder.swapTokenToVELOKeeper, (routes, amountIn, amountOutMin));
+        uint256 slippage = 500;
+        calls[0] = abi.encodeCall(autoCompounder.swapTokenToVELOWithOptionalRoute, (address(WETH), slippage, routes));
         calls[1] = abi.encodeWithSelector(autoCompounder.compound.selector);
+
+        vm.startPrank(randomKeeper);
         autoCompounder.multicall(calls);
 
         assertEq(autoCompounder.keeperLastRun(), block.timestamp);
@@ -507,18 +532,44 @@ contract AutoCompounderTest is BaseTest {
         assertEq(autoCompounder.amountTokenEarned(VelodromeTimeLibrary.epochStart(block.timestamp)), amountOut);
     }
 
+    function testCannotSwapTokenToVELOKeeperIfFirstHourOfEpoch() public {
+        address randomKeeper = address(0x123321);
+        keeperRegistry.approve(address(randomKeeper));
+        bytes[] memory calls = new bytes[](1);
+        IRouter.Route[] memory optionalRoute = new IRouter.Route[](0);
+        calls[0] = abi.encodeCall(autoCompounder.swapTokenToVELOWithOptionalRoute, (address(0), 0, optionalRoute));
+        skipToNextEpoch(0);
+
+        vm.startPrank(randomKeeper);
+        vm.expectRevert(IAutoCompounder.TooSoon.selector);
+        autoCompounder.swapTokenToVELOWithOptionalRoute(address(0), 0, optionalRoute);
+        vm.expectRevert(IRelay.MulticallFailed.selector);
+        autoCompounder.multicall(calls);
+
+        skipToNextEpoch(1 hours - 1);
+
+        vm.startPrank(randomKeeper);
+        vm.expectRevert(IAutoCompounder.TooSoon.selector);
+        autoCompounder.swapTokenToVELOWithOptionalRoute(address(0), 0, optionalRoute);
+        vm.expectRevert(IRelay.MulticallFailed.selector);
+        autoCompounder.multicall(calls);
+    }
+
     function testCannotSwapTokenToVELOIfNotOnLastDayOfEpoch() external {
         bytes[] memory calls = new bytes[](1);
-        calls[0] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(0), 0));
+        IRouter.Route[] memory optionalRoute = new IRouter.Route[](0);
+        calls[0] = abi.encodeCall(autoCompounder.swapTokenToVELOWithOptionalRoute, (address(0), 0, optionalRoute));
         skipToNextEpoch(0);
+        // call with non owner nor keeper
+        vm.startPrank(address(owner4));
         vm.expectRevert(IAutoCompounder.TooSoon.selector);
-        autoCompounder.swapTokenToVELO(address(0), 0);
+        autoCompounder.swapTokenToVELOWithOptionalRoute(address(0), 0, optionalRoute);
         vm.expectRevert(IRelay.MulticallFailed.selector);
         autoCompounder.multicall(calls);
 
         skipToNextEpoch(6 days - 1);
         vm.expectRevert(IAutoCompounder.TooSoon.selector);
-        autoCompounder.swapTokenToVELO(address(0), 0);
+        autoCompounder.swapTokenToVELOWithOptionalRoute(address(0), 0, optionalRoute);
         vm.expectRevert(IRelay.MulticallFailed.selector);
         autoCompounder.multicall(calls);
     }
@@ -536,13 +587,15 @@ contract AutoCompounderTest is BaseTest {
     function testCannotSwapIfSlippageTooHigh() public {
         address tokenToSwap = address(USDC);
         uint256 slippage = 501;
+        IRouter.Route[] memory optionalRoute = new IRouter.Route[](0);
         vm.expectRevert(IAutoCompounder.SlippageTooHigh.selector);
-        autoCompounder.swapTokenToVELO(tokenToSwap, slippage);
+        autoCompounder.swapTokenToVELOWithOptionalRoute(tokenToSwap, slippage, optionalRoute);
     }
 
     function testCannotSwapIfAmountInZero() public {
+        IRouter.Route[] memory optionalRoute = new IRouter.Route[](0);
         vm.expectRevert(IAutoCompounder.AmountInZero.selector);
-        autoCompounder.swapTokenToVELO(address(USDC), 500);
+        autoCompounder.swapTokenToVELOWithOptionalRoute(address(USDC), 500, optionalRoute);
     }
 
     function testHandleRouterApproval() public {
@@ -556,7 +609,8 @@ contract AutoCompounderTest is BaseTest {
         address tokenToSwap = address(FRAX);
         uint256 slippage = 500;
 
-        autoCompounder.swapTokenToVELO(tokenToSwap, slippage);
+        IRouter.Route[] memory optionalRoute = new IRouter.Route[](0);
+        autoCompounder.swapTokenToVELOWithOptionalRoute(tokenToSwap, slippage, optionalRoute);
         assertEq(FRAX.allowance(address(autoCompounder), address(router)), 0);
     }
 
@@ -618,34 +672,6 @@ contract AutoCompounderTest is BaseTest {
         vm.prank(escrow.team());
         autoCompounder.sweep(tokensToSweep, recipients);
         assertEq(USDC.balanceOf(address(owner2)), balanceBefore + USDC_1);
-    }
-
-    function testCannotSwapKeeperIfNotKeeper() public {
-        vm.startPrank(address(owner2));
-        vm.expectRevert(IRelay.NotKeeper.selector);
-        autoCompounder.swapTokenToVELOKeeper(new IRouter.Route[](0), 0, 0);
-    }
-
-    function testCannotSwapKeeperIfAmountInZero() public {
-        vm.expectRevert(IAutoCompounder.AmountInZero.selector);
-        autoCompounder.swapTokenToVELOKeeper(new IRouter.Route[](0), 0, 0);
-    }
-
-    function testCannotSwapKeeperIfSlippageTooHigh() public {
-        vm.expectRevert(IAutoCompounder.SlippageTooHigh.selector);
-        autoCompounder.swapTokenToVELOKeeper(new IRouter.Route[](0), 1, 0);
-    }
-
-    function testCannotSwapKeeperIfInvalidPath() public {
-        vm.expectRevert(IAutoCompounder.InvalidPath.selector);
-        autoCompounder.swapTokenToVELOKeeper(new IRouter.Route[](0), 1, 1);
-    }
-
-    function testCannotSwapKeeperIfAmountInTooHigh() public {
-        IRouter.Route[] memory routes = new IRouter.Route[](1);
-        routes[0] = IRouter.Route(address(WETH), address(VELO), false, address(0));
-        vm.expectRevert(IAutoCompounder.AmountInTooHigh.selector);
-        autoCompounder.swapTokenToVELOKeeper(routes, 1, 1);
     }
 
     function testName() public {

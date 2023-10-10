@@ -13,7 +13,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title Velodrome AutoCompounder for Managed veNFTs
-/// @author velodrome.finance, @figs999, @pegahcarter
+/// @author velodrome.finance, @figs999, @pegahcarter, @pedrovalido
 /// @notice Auto-Compound voting rewards earned from a Managed veNFT back into the veNFT through call incentivization
 contract AutoCompounder is IAutoCompounder, Relay {
     using SafeERC20 for IERC20;
@@ -69,22 +69,33 @@ contract AutoCompounder is IAutoCompounder, Relay {
         }
     }
 
+    function _checkSwapPermissions(address _caller) internal view {
+        if (hasRole(DEFAULT_ADMIN_ROLE, _caller)) return;
+
+        uint256 timestamp = block.timestamp;
+        uint256 secondHourStart = timestamp - (timestamp % WEEK) + 1 hours;
+        if (relayFactory.isKeeper(_caller)) {
+            if (timestamp >= secondHourStart) {
+                return;
+            } else {
+                revert TooSoon();
+            }
+        }
+        uint256 lastDayStart = timestamp - (timestamp % WEEK) + WEEK - 1 days;
+        if (timestamp < lastDayStart) revert TooSoon();
+    }
+
     // -------------------------------------------------
     // Public functions
     // -------------------------------------------------
-
-    /// @inheritdoc IAutoCompounder
-    function swapTokenToVELO(address _tokenToSwap, uint256 _slippage) external {
-        IRouter.Route[] memory optionalRoute = new IRouter.Route[](0);
-        swapTokenToVELOWithOptionalRoute(_tokenToSwap, _slippage, optionalRoute);
-    }
 
     /// @inheritdoc IAutoCompounder
     function swapTokenToVELOWithOptionalRoute(
         address _token,
         uint256 _slippage,
         IRouter.Route[] memory _optionalRoute
-    ) public onlyLastDayOfEpoch {
+    ) external nonReentrant {
+        _checkSwapPermissions(msg.sender);
         if (_slippage > MAX_SLIPPAGE) revert SlippageTooHigh();
         if (_token == address(velo)) revert InvalidPath();
         uint256 balance = IERC20(_token).balanceOf(address(this));
@@ -122,6 +133,10 @@ contract AutoCompounder is IAutoCompounder, Relay {
             address(this),
             block.timestamp
         );
+
+        if (relayFactory.isKeeper(msg.sender)) {
+            keeperLastRun = block.timestamp;
+        }
 
         emit SwapTokenToVELO(_msgSender(), _token, balance, amountsOut[amountsOut.length - 1], routes);
     }
@@ -194,37 +209,5 @@ contract AutoCompounder is IAutoCompounder, Relay {
                 emit Sweep(tokenToSweep, msg.sender, recipient, balance);
             }
         }
-    }
-
-    // -------------------------------------------------
-    // Keeper functions
-    // -------------------------------------------------
-
-    /// @inheritdoc IAutoCompounder
-    function swapTokenToVELOKeeper(
-        IRouter.Route[] calldata _routes,
-        uint256 _amountIn,
-        uint256 _amountOutMin
-    ) external onlyKeeper(msg.sender) nonReentrant {
-        if (_amountIn == 0) revert AmountInZero();
-        if (_amountOutMin == 0) revert SlippageTooHigh();
-        if (_routes.length < 1 || _routes[_routes.length - 1].to != address(velo)) revert InvalidPath();
-        address from = _routes[0].from;
-        if (from == address(velo)) revert InvalidPath();
-
-        uint256 balance = IERC20(from).balanceOf(address(this));
-        if (_amountIn > balance) revert AmountInTooHigh();
-
-        _handleApproval(IERC20(from), address(router), _amountIn);
-        uint256[] memory amountsOut = router.swapExactTokensForTokens(
-            _amountIn,
-            _amountOutMin,
-            _routes,
-            address(this),
-            block.timestamp
-        );
-        keeperLastRun = block.timestamp;
-
-        emit SwapTokenToVELOKeeper(_msgSender(), from, _amountIn, amountsOut[amountsOut.length - 1], _routes);
     }
 }

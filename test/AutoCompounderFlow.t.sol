@@ -63,7 +63,10 @@ contract AutoCompounderFlow is AutoCompounderTest {
         uint256 slippage = 500;
         bytes[] memory calls = new bytes[](3);
         calls[0] = abi.encodeCall(autoCompounder.claimBribes, (bribes, tokensToClaim));
-        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(DAI), slippage));
+        calls[1] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(DAI), slippage, new IRouter.Route[](0))
+        );
         calls[2] = abi.encodeWithSelector(autoCompounder.rewardAndCompound.selector);
         vm.prank(address(owner2));
         autoCompounder.multicall(calls);
@@ -88,7 +91,10 @@ contract AutoCompounderFlow is AutoCompounderTest {
         tokensToClaim = new address[][](1);
         tokensToClaim[0] = [address(USDC)];
         calls[0] = abi.encodeCall(autoCompounder.claimBribes, (bribes, tokensToClaim));
-        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(USDC), slippage));
+        calls[1] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(USDC), slippage, new IRouter.Route[](0))
+        );
         vm.prank(address(owner2));
         autoCompounder.multicall(calls);
 
@@ -111,7 +117,10 @@ contract AutoCompounderFlow is AutoCompounderTest {
 
         tokensToClaim[0] = [address(FRAX)];
         calls[0] = abi.encodeCall(autoCompounder.claimBribes, (bribes, tokensToClaim));
-        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(FRAX), slippage));
+        calls[1] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(FRAX), slippage, new IRouter.Route[](0))
+        );
         vm.prank(address(owner2));
         autoCompounder.multicall(calls);
 
@@ -141,9 +150,18 @@ contract AutoCompounderFlow is AutoCompounderTest {
         tokensToClaim[0] = [address(DAI), address(USDC), address(FRAX)];
         calls = new bytes[](5);
         calls[0] = abi.encodeCall(autoCompounder.claimBribes, (bribes, tokensToClaim));
-        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(DAI), slippage));
-        calls[2] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(FRAX), slippage));
-        calls[3] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(USDC), slippage));
+        calls[1] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(DAI), slippage, new IRouter.Route[](0))
+        );
+        calls[2] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(FRAX), slippage, new IRouter.Route[](0))
+        );
+        calls[3] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(USDC), slippage, new IRouter.Route[](0))
+        );
         calls[4] = abi.encodeWithSelector(autoCompounder.rewardAndCompound.selector);
         vm.prank(address(owner2));
         autoCompounder.multicall(calls);
@@ -199,7 +217,10 @@ contract AutoCompounderFlow is AutoCompounderTest {
         uint256 slippage = 500;
         bytes[] memory calls = new bytes[](3);
         calls[0] = abi.encodeCall(autoCompounder.claimFees, (fees, tokensToClaim));
-        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(FRAX), slippage));
+        calls[1] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(FRAX), slippage, new IRouter.Route[](0))
+        );
         calls[2] = abi.encodeWithSelector(autoCompounder.rewardAndCompound.selector);
         vm.prank(address(owner2));
         autoCompounder.multicall(calls);
@@ -224,7 +245,10 @@ contract AutoCompounderFlow is AutoCompounderTest {
         tokensToClaim = new address[][](1);
         tokensToClaim[0] = [address(USDC)];
         calls[0] = abi.encodeCall(autoCompounder.claimFees, (fees, tokensToClaim));
-        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(USDC), slippage));
+        calls[1] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(USDC), slippage, new IRouter.Route[](0))
+        );
         vm.prank(address(owner2));
         autoCompounder.multicall(calls);
 
@@ -247,7 +271,10 @@ contract AutoCompounderFlow is AutoCompounderTest {
 
         tokensToClaim[0] = [address(FRAX)];
         calls[0] = abi.encodeCall(autoCompounder.claimFees, (fees, tokensToClaim));
-        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(FRAX), slippage));
+        calls[1] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(FRAX), slippage, new IRouter.Route[](0))
+        );
         vm.prank(address(owner2));
         autoCompounder.multicall(calls);
 
@@ -276,8 +303,14 @@ contract AutoCompounderFlow is AutoCompounderTest {
         tokensToClaim[0] = [address(FRAX), address(USDC)];
         calls = new bytes[](4);
         calls[0] = abi.encodeCall(autoCompounder.claimFees, (fees, tokensToClaim));
-        calls[1] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(FRAX), slippage));
-        calls[2] = abi.encodeCall(autoCompounder.swapTokenToVELO, (address(USDC), slippage));
+        calls[1] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(FRAX), slippage, new IRouter.Route[](0))
+        );
+        calls[2] = abi.encodeCall(
+            autoCompounder.swapTokenToVELOWithOptionalRoute,
+            (address(USDC), slippage, new IRouter.Route[](0))
+        );
         calls[3] = abi.encodeWithSelector(autoCompounder.rewardAndCompound.selector);
         autoCompounder.multicall(calls);
 

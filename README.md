@@ -28,7 +28,7 @@ There are degrees of trust and access given to various groups.  The groups are:
 Can be any EOA or contract.  Are allowed to claim rewards and compound within the last 24 hours of an epoch.  Swap routes are determined using a fixed optimizer contract, although callers can provide their own custom route provided there is a better return.  The optional swap route provided must only route through high liquidity tokens, as added by team.  Public callers are rewarded based on the amount compounded - they receive a minimum of either (a) 1% of the VELO converted from swaps (rounded down) or (b) the constant VELO reward set by the team.
 
 ### Keepers
-Addresses authorized by Velodrome team to claim rewards and compound.  Keepers are trusted to swap rewarded tokens into VELO using the amounts and routes they determine, assumed to be the best rate, which is then deposited into the (m)veNFT.
+Addresses authorized by Velodrome team to claim rewards and compound starting on the 2nd hour of an epoch. Keepers are trusted to swap rewarded tokens into VELO using the routes they determine (as long as they are better than the routes provided by the optimizer) which is then deposited into the (m)veNFT.
 
 ### Allowed Callers
 Addresses authorized by the AutoCompounder admin to vote for gauges and send additional VELO rewards to the (m)veNFT to be distributed among veNFTs who have locked into the (m)veNFT.
@@ -42,24 +42,23 @@ See PERMISSIONS.md for additional clarity.  The team can set the VELO reward amo
 ## Roles
 | | Public | Keeper | Allowed Caller | Admin | Velodrome Team |
 | --- | --- | --- | --- | --- | --- |
-| Claim Rewards | Yes | Yes | | Yes  |  |
-| Swap and Compound | - Use auto-generated optimal route or provide a better route </br> - Swaps full balance held| - Can provide any route </br> - Can swap any amount
-| Reward paid to caller | Yes | | | |
+| Claim Rewards | Yes | Yes | | Yes |  |
+| Swap and Compound | Yes | Yes | | Yes | |
+| Reward paid to caller | Yes | | | | |
 | Sweep tokens | | | | Yes (if not a high liquidity token)| |
-| Vote & increase rewards | | | Yes | |
+| Vote & increase rewards | | | Yes | | |
 | Set caller reward amount | | | | | Yes |
 | Add high liquidity tokens | | | | | Yes |
-| Add/remove Keepers | | | | | Yes|
+| Add/remove Keepers | | | | | Yes |
 
 ## Time Windows of Access
-| Who | First 24 hours | Middle 5 days |  Last 24 Hours
-|---|---|---|---|
-| Public | | | X | | X |
-| Keeper | X | X | X |
-| Allowed Callers | X | X | X |
-| Admin | X |  |  |
-| Team | X | X | X
-
+| Who | First hour | First 24 hours | Middle 5 days |  Last 24 Hours
+|---|---|---|---|---|
+| Public | | | | X |
+| Keeper | | X | X | X |
+| Allowed Callers | X | X | X | X |
+| Admin | X | X | X | X |
+| Team | X | X | X | X
 
 ## (m)veNFT Design Considerations
 
@@ -78,8 +77,8 @@ What happens if a (m)veNFT is deactivated by the team?  What happens if the cont
 
 **At any time, a normal veNFT can be withdrawn from its' deposited (m)veNFT, as long as it has *not* been deposited within the same epoch**.
 
-### What if Keepers compound using less-than-optimal routes to extract value?
-Trust in this scenario is given to the Velodrome team, whose responsibility is to add and remove trusted keepers.  The Velodrome teams' best interest is in the protocol and the team's reputation is at stake.  Keepers will be actively monitored by the Velodrome Team to ensure they behave as intended, and will be removed immediately if needed.
+### What if Keepers provide less-than-optimal routes to extract value?
+The routes provided by the keepers are only used if they're better than the routes provided by the CompoundOptimizer.
 
 ### Can I trust the Admin in sweeping tokens?
 The intention of sweep is solely to allow pulling of low liquidity tokens earned by the (m)veNFT, to prevent compounding the tokens with high slippage.  The admin can revoke their own access if desired.
