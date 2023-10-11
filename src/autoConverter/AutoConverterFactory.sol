@@ -28,6 +28,7 @@ contract AutoConverterFactory is RelayFactory {
         bytes calldata _data
     ) internal override returns (address autoConverter) {
         address _token = abi.decode(_data, (address));
+        if (_token == address(0)) revert ZeroAddress();
 
         autoConverter = address(new AutoConverter(forwarder, voter, _admin, _name, router, _token, address(this)));
     }

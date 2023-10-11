@@ -104,4 +104,17 @@ contract AutoConverterFactoryTest is RelayFactoryTest {
         assertEq(escrow.ownerOf(mTokenId), address(autoConverter));
         assertEq(autoConverter.mTokenId(), mTokenId);
     }
+
+    function testCannotCreateAutoConverterWithZeroAddress() public {
+        vm.prank(escrow.allowedManager());
+        mTokenId = escrow.createManagedLockFor(address(owner));
+
+        assertEq(autoConverterFactory.relaysLength(), 0);
+
+        vm.startPrank(address(owner));
+        escrow.approve(address(autoConverterFactory), mTokenId);
+        bytes memory data = abi.encode(address(0));
+        vm.expectRevert(IRelayFactory.ZeroAddress.selector);
+        autoConverterFactory.createRelay(address(owner), mTokenId, "", data);
+    }
 }
