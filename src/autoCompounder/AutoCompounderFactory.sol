@@ -25,8 +25,6 @@ contract AutoCompounderFactory is IAutoCompounderFactory, RelayFactory {
 
     address public immutable optimizer;
 
-    EnumerableSet.AddressSet private _highLiquidityTokens;
-
     constructor(
         address _forwarder,
         address _voter,
@@ -34,13 +32,8 @@ contract AutoCompounderFactory is IAutoCompounderFactory, RelayFactory {
         address _optimizer,
         address _keeperRegistry,
         address[] memory highLiquidityTokens_
-    ) RelayFactory(_forwarder, _voter, _router, _keeperRegistry) {
+    ) RelayFactory(_forwarder, _voter, _router, _keeperRegistry, highLiquidityTokens_) {
         optimizer = _optimizer;
-
-        uint256 length = highLiquidityTokens_.length;
-        for (uint256 i = 0; i < length; i++) {
-            _addHighLiquidityToken(highLiquidityTokens_[i]);
-        }
     }
 
     function _deployRelayInstance(
@@ -57,32 +50,5 @@ contract AutoCompounderFactory is IAutoCompounderFactory, RelayFactory {
         if (_rewardAmount < MIN_REWARD_AMOUNT || _rewardAmount > MAX_REWARD_AMOUNT) revert AmountOutOfAcceptableRange();
         rewardAmount = _rewardAmount;
         emit SetRewardAmount(_rewardAmount);
-    }
-
-    /// @inheritdoc IAutoCompounderFactory
-    function addHighLiquidityToken(address _token) external onlyOwner {
-        _addHighLiquidityToken(_token);
-    }
-
-    function _addHighLiquidityToken(address _token) private {
-        if (_token == address(0)) revert ZeroAddress();
-        if (isHighLiquidityToken(_token)) revert HighLiquidityTokenAlreadyExists();
-        _highLiquidityTokens.add(_token);
-        emit AddHighLiquidityToken(_token);
-    }
-
-    /// @inheritdoc IAutoCompounderFactory
-    function isHighLiquidityToken(address _token) public view returns (bool) {
-        return _highLiquidityTokens.contains(_token);
-    }
-
-    /// @inheritdoc IAutoCompounderFactory
-    function highLiquidityTokens() external view returns (address[] memory) {
-        return _highLiquidityTokens.values();
-    }
-
-    /// @inheritdoc IAutoCompounderFactory
-    function highLiquidityTokensLength() external view returns (uint256) {
-        return _highLiquidityTokens.length();
     }
 }

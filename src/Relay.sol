@@ -12,7 +12,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {AccessControlEnumerable} from "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
@@ -21,7 +21,14 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 /// @author velodrome.finance, @pedrovalido, @airtoonricardo, @pegahcarter
 /// @notice Velodrome base Relay contract to manage a (m)veNFT
 /// @dev Inherit this contract to your custom Relay implementation
-abstract contract Relay is IRelay, ERC2771Context, ERC721Holder, ReentrancyGuard, AccessControl, Initializable {
+abstract contract Relay is
+    IRelay,
+    ERC2771Context,
+    ERC721Holder,
+    ReentrancyGuard,
+    AccessControlEnumerable,
+    Initializable
+{
     using SafeERC20 for IERC20;
 
     bytes32 public constant ALLOWED_CALLER = keccak256("ALLOWED_CALLER");

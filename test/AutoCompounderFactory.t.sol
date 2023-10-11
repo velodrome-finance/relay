@@ -146,7 +146,7 @@ contract AutoCompounderFactoryTest is RelayFactoryTest {
     function testCannotAddHighLiquidityTokenIfAlreadyExists() public {
         vm.startPrank(autoCompounderFactory.owner());
         autoCompounderFactory.addHighLiquidityToken(address(USDC));
-        vm.expectRevert(IAutoCompounderFactory.HighLiquidityTokenAlreadyExists.selector);
+        vm.expectRevert(IRelayFactory.HighLiquidityTokenAlreadyExists.selector);
         autoCompounderFactory.addHighLiquidityToken(address(USDC));
     }
 

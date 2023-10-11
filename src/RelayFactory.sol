@@ -28,11 +28,14 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
 
     EnumerableSet.AddressSet internal _relays;
 
+    EnumerableSet.AddressSet private _highLiquidityTokens;
+
     constructor(
         address _forwarder,
         address _voter,
         address _router,
-        address _keeperRegistry
+        address _keeperRegistry,
+        address[] memory highLiquidityTokens_
     ) ERC2771Context(_forwarder) {
         forwarder = _forwarder;
         voter = _voter;
@@ -40,6 +43,11 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
 
         keeperRegistry = IRegistry(_keeperRegistry);
         ve = IVotingEscrow(IVoter(voter).ve());
+
+        uint256 length = highLiquidityTokens_.length;
+        for (uint256 i = 0; i < length; i++) {
+            _addHighLiquidityToken(highLiquidityTokens_[i]);
+        }
     }
 
     // -------------------------------------------------
@@ -104,6 +112,33 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
     /// @inheritdoc IRelayFactory
     function isKeeper(address _keeper) external view returns (bool) {
         return keeperRegistry.isApproved(_keeper);
+    }
+
+    /// @inheritdoc IRelayFactory
+    function addHighLiquidityToken(address _token) external onlyOwner {
+        _addHighLiquidityToken(_token);
+    }
+
+    function _addHighLiquidityToken(address _token) private {
+        if (_token == address(0)) revert ZeroAddress();
+        if (isHighLiquidityToken(_token)) revert HighLiquidityTokenAlreadyExists();
+        _highLiquidityTokens.add(_token);
+        emit AddHighLiquidityToken(_token);
+    }
+
+    /// @inheritdoc IRelayFactory
+    function isHighLiquidityToken(address _token) public view returns (bool) {
+        return _highLiquidityTokens.contains(_token);
+    }
+
+    /// @inheritdoc IRelayFactory
+    function highLiquidityTokens() external view returns (address[] memory) {
+        return _highLiquidityTokens.values();
+    }
+
+    /// @inheritdoc IRelayFactory
+    function highLiquidityTokensLength() external view returns (uint256) {
+        return _highLiquidityTokens.length();
     }
 
     // -------------------------------------------------

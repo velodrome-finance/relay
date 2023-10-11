@@ -4,10 +4,15 @@ pragma solidity ^0.8.0;
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 
 interface IAutoConverter {
-    error AmountInTooHigh();
     error AmountInZero();
     error InvalidPath();
+    error NotHighLiquidityToken();
+    error NoRouteFound();
     error SlippageTooHigh();
+    error TooLate();
+    error TooSoon();
+    error UnequalLengths();
+    error ZeroAddress();
 
     event SwapTokenToToken(
         address indexed claimer,
@@ -29,15 +34,16 @@ interface IAutoConverter {
     function sweep(address _token, address _recipient, uint256 _amount) external;
 
     // -------------------------------------------------
-    // Keeper functions
+    // Public functions
     // -------------------------------------------------
 
-    /// @notice Swap one token into the target token stored by the autoConverter
-    ///         Only callable by keepers added by Owner within AutoConverterFactory.
-    ///         Swapping is done with routes and amounts swapped determined by the keeper.
-    /// @dev _amountIn and _amountOutMin cannot be 0.
-    /// @param _routes          Arrays for which swap routes to execute
-    /// @param _amountIn        Amount of token in
-    /// @param _amountOutMin    Minimum amount of token received
-    function swapTokenToToken(IRouter.Route[] calldata _routes, uint256 _amountIn, uint256 _amountOutMin) external;
+    /// @notice Swap token held by the autoConverter into token using the optimal route determined by
+    ///         the ConverterOptimizer unless the user-provided swap route has a better rate
+    ///         Publicly callable in the final 24 hours before the epoch flip or by an authorized keeper starting on the 2nd hour of an epoch flip or admin
+    /// @dev Optional routes are provided when the optional amountOut exceeds the amountOut calculated by ConverterOptimizer
+    function swapTokenToTokenWithOptionalRoute(
+        address _tokenToSwap,
+        uint256 _slippage,
+        IRouter.Route[] memory _optionalRoutes
+    ) external;
 }

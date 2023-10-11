@@ -4,11 +4,13 @@ pragma solidity 0.8.19;
 import "test/RelayFactory.t.sol";
 
 import "src/autoConverter/AutoConverter.sol";
+import "src/autoConverter/ConverterOptimizer.sol";
 import "src/autoConverter/AutoConverterFactory.sol";
 
 contract AutoConverterFactoryTest is RelayFactoryTest {
     AutoConverterFactory autoConverterFactory;
     AutoConverter autoConverter;
+    ConverterOptimizer optimizer;
 
     constructor() {
         deploymentType = Deployment.FORK;
@@ -22,7 +24,9 @@ contract AutoConverterFactoryTest is RelayFactoryTest {
             address(forwarder),
             address(voter),
             address(router),
-            address(keeperRegistry)
+            address(optimizer),
+            address(keeperRegistry),
+            new address[](0)
         );
         relayFactory = RelayFactory(autoConverterFactory);
     }

@@ -98,6 +98,7 @@ contract AutoCompounder is IAutoCompounder, Relay {
         _checkSwapPermissions(msg.sender);
         if (_slippage > MAX_SLIPPAGE) revert SlippageTooHigh();
         if (_token == address(velo)) revert InvalidPath();
+        if (_token == address(0)) revert ZeroAddress();
         uint256 balance = IERC20(_token).balanceOf(address(this));
         if (balance == 0) revert AmountInZero();
 

@@ -10,17 +10,23 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 
 /// @title AutoConverterFactory
-/// @author velodrome.finance, @pegahcarter, @airtoonricardo
+/// @author velodrome.finance, @pegahcarter, @airtoonricardo, @pedrovalido
 /// @notice Factory contract to create AutoConverters and manage authorized callers of the AutoConverters
 contract AutoConverterFactory is RelayFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
+
+    address public immutable optimizer;
 
     constructor(
         address _forwarder,
         address _voter,
         address _router,
-        address _keeperRegistry
-    ) RelayFactory(_forwarder, _voter, _router, _keeperRegistry) {}
+        address _optimizer,
+        address _keeperRegistry,
+        address[] memory highLiquidityTokens_
+    ) RelayFactory(_forwarder, _voter, _router, _keeperRegistry, highLiquidityTokens_) {
+        optimizer = _optimizer;
+    }
 
     function _deployRelayInstance(
         address _admin,
@@ -30,6 +36,8 @@ contract AutoConverterFactory is RelayFactory {
         address _token = abi.decode(_data, (address));
         if (_token == address(0)) revert ZeroAddress();
 
-        autoConverter = address(new AutoConverter(forwarder, voter, _admin, _name, router, _token, address(this)));
+        autoConverter = address(
+            new AutoConverter(forwarder, voter, _admin, _name, router, _token, optimizer, address(this))
+        );
     }
 }

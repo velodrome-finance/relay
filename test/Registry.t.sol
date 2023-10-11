@@ -39,7 +39,14 @@ contract RegistryTest is BaseTest {
             )
         );
         convFactory = address(
-            new AutoConverterFactory(address(forwarder), address(voter), address(router), address(keeperRegistry))
+            new AutoConverterFactory(
+                address(forwarder),
+                address(voter),
+                address(router),
+                address(0),
+                address(keeperRegistry),
+                new address[](0)
+            )
         );
         relayFactoryRegistry = new Registry(approved);
         testKeeper = vm.addr(1);

@@ -7,9 +7,13 @@ interface IRelayFactory {
     error SameRegistry();
     error ZeroAddress();
     error TokenIdZero();
+    error HighLiquidityTokenAlreadyExists();
+    error AmountOutOfAcceptableRange();
+    error AmountSame();
 
     event CreateRelay(address indexed _from, address indexed _admin, string _name, address _relay);
     event SetKeeperRegistry(address indexed _keeperRegistry);
+    event AddHighLiquidityToken(address indexed _token);
 
     /// @notice Create a Relay for a (m)veNFT
     /// @param _admin       Admin address to set slippage tolerance / manage ALLOWED_CALLER
@@ -43,4 +47,25 @@ interface IRelayFactory {
     /// @param _keeper Address of keeper queried
     /// @return True if keeper, else false
     function isKeeper(address _keeper) external view returns (bool);
+
+    /// @notice Register a token address with high liquidity
+    ///         Callable by Owner
+    /// @dev Once an address is added, it cannot be removed
+    /// @param _token Address of token to register
+    function addHighLiquidityToken(address _token) external;
+
+    /// @notice View if an address is registered as a high liquidity token
+    ///         This indicates a token has significant liquidity to swap route into VELO
+    ///         If a token address returns true, it cannot be swept from an AutoCompounder
+    /// @param _token Address of token to query
+    /// @return True if token is registered as a high liquidity token, else false
+    function isHighLiquidityToken(address _token) external view returns (bool);
+
+    /// @notice View for all registered high liquidity tokens
+    /// @return Array of high liquidity tokens
+    function highLiquidityTokens() external view returns (address[] memory);
+
+    /// @notice Get the count of registered high liquidity tokens
+    /// @return Count of registered high liquidity tokens
+    function highLiquidityTokensLength() external view returns (uint256);
 }
