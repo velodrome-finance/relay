@@ -206,6 +206,7 @@ contract AutoConverterTest is BaseTest {
 
         autoConverter.vote(poolVote, weights);
 
+        assertEq(autoConverter.keeperLastRun(), block.timestamp);
         assertTrue(escrow.voted(mTokenId));
         assertEq(voter.weights(address(pool2)), escrow.balanceOfNFT(mTokenId));
         assertEq(voter.votes(mTokenId, address(pool2)), escrow.balanceOfNFT(mTokenId));

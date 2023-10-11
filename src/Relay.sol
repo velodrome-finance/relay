@@ -108,6 +108,7 @@ abstract contract Relay is IRelay, ERC2771Context, ERC721Holder, ReentrancyGuard
     /// @inheritdoc IRelay
     function vote(address[] calldata _poolVote, uint256[] calldata _weights) external onlyRole(ALLOWED_CALLER) {
         voter.vote(mTokenId, _poolVote, _weights);
+        keeperLastRun = block.timestamp;
     }
 
     // -------------------------------------------------

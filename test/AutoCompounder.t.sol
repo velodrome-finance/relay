@@ -495,6 +495,7 @@ contract AutoCompounderTest is BaseTest {
 
         autoCompounder.vote(poolVote, weights);
 
+        assertEq(autoCompounder.keeperLastRun(), block.timestamp);
         assertTrue(escrow.voted(mTokenId));
         assertEq(voter.weights(address(pool2)), escrow.balanceOfNFT(mTokenId));
         assertEq(voter.votes(mTokenId, address(pool2)), escrow.balanceOfNFT(mTokenId));
