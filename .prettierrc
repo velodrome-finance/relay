@@ -8,6 +8,14 @@
         "useTabs": false,
         "bracketSpacing": false
       }
+    },
+    {
+      "files": "**.md",
+      "options": {
+        "printWidth": 120,
+        "tabWidth": 4,
+        "useTabs": false
+      }
     }
   ]
 }

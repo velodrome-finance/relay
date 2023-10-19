@@ -5,7 +5,11 @@ import jsonOutput from "../constants/output/Tenderly.json";
 import jsonConstants from "../constants/Optimism.json";
 import { join } from "path";
 import { writeFile } from "fs/promises";
-import { Registry, AutoConverterFactory } from "../../artifacts/types";
+import {
+  Registry,
+  AutoConverterFactory,
+  ConverterOptimizer,
+} from "../../artifacts/types";
 
 export async function deploy<Type>(
   typeName: string,
@@ -37,21 +41,36 @@ async function main() {
     jsonOutput.Registry
   );
 
+  const optimizer = await deploy<ConverterOptimizer>(
+    "CompoundOptimizer",
+    undefined,
+    jsonConstants.USDC,
+    jsonConstants.WETH,
+    jsonConstants.OP,
+    jsonConstants.v2.VELO,
+    jsonConstants.v2.PoolFactory,
+    jsonConstants.v2.Router
+  );
+  console.log(`ConverterOptimizer deployed to: ${optimizer.address}`);
   const acFactory = await deploy<AutoConverterFactory>(
     "AutoConverterFactory",
     undefined,
     jsonConstants.v2.Forwarder,
     jsonConstants.v2.Voter,
     jsonConstants.v2.Router,
-    keeperRegistry
+    optimizer.address,
+    keeperRegistry.address,
+    jsonConstants.highLiquidityTokens
   );
   console.log(`AutoConverterFactory deployed to ${acFactory.address}`);
   await relayFactoryRegistry.approve(acFactory.address);
 
   interface DeployOutput {
+    ConverterOptimizer: string;
     AutoConverterFactory: string;
   }
   const output: DeployOutput = {
+    ConverterOptimizer: optimizer.address,
     AutoConverterFactory: acFactory.address,
   };
 
