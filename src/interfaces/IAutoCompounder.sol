@@ -14,7 +14,6 @@ interface IAutoCompounder {
     error TooLate();
     error TooSoon();
     error UnequalLengths();
-    error ZeroAddress();
 
     event Reward(address indexed sender, uint256 balanceRewarded);
     event Compound(uint256 balanceCompounded);
@@ -33,9 +32,9 @@ interface IAutoCompounder {
     // -------------------------------------------------
 
     /// @notice Swap token held by the autoCompounder into VELO using the optimal route determined by
-    ///         the CompoundOptimizer unless the user-provided swap route has a better rate
+    ///         the Optimizer unless the user-provided swap route has a better rate
     ///         Publicly callable in the final 24 hours before the epoch flip or by an authorized keeper starting the 2nd hour of an epoch or an admin
-    /// @dev Optional routes are provided when the optional amountOut exceeds the amountOut calculated by CompoundOptimizer
+    /// @dev Optional routes are provided when the optional amountOut exceeds the amountOut calculated by Optimizer
     function swapTokenToVELOWithOptionalRoute(
         address _tokenToSwap,
         uint256 _slippage,

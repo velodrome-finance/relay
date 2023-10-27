@@ -4,13 +4,13 @@ pragma solidity 0.8.19;
 import "test/RelayFactory.t.sol";
 
 import "src/autoConverter/AutoConverter.sol";
-import "src/autoConverter/ConverterOptimizer.sol";
+import "src/Optimizer.sol";
 import "src/autoConverter/AutoConverterFactory.sol";
 
 contract AutoConverterFactoryTest is RelayFactoryTest {
     AutoConverterFactory autoConverterFactory;
     AutoConverter autoConverter;
-    ConverterOptimizer optimizer;
+    Optimizer optimizer;
 
     constructor() {
         deploymentType = Deployment.FORK;
@@ -20,12 +20,17 @@ contract AutoConverterFactoryTest is RelayFactoryTest {
     function _setUp() public override {
         escrow.setTeam(address(owner4));
         keeperRegistry = new Registry(new address[](0));
+        // factory doesnt allow setting default optimizer as address(0)
+        address randomOptimizerAddress = vm.addr(1);
+        optimizerRegistry = new Registry(new address[](0));
+        optimizerRegistry.approve(randomOptimizerAddress);
         autoConverterFactory = new AutoConverterFactory(
             address(forwarder),
             address(voter),
             address(router),
-            address(optimizer),
             address(keeperRegistry),
+            address(optimizerRegistry),
+            randomOptimizerAddress,
             new address[](0)
         );
         relayFactory = RelayFactory(autoConverterFactory);

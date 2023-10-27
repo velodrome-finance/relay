@@ -10,9 +10,13 @@ interface IRelayFactory {
     error HighLiquidityTokenAlreadyExists();
     error AmountOutOfAcceptableRange();
     error AmountSame();
+    error OptimizerNotApproved();
+    error SameOptimizer();
 
     event CreateRelay(address indexed _from, address indexed _admin, string _name, address _relay);
     event SetKeeperRegistry(address indexed _keeperRegistry);
+    event SetOptimizerRegistry(address indexed _optimizerRegistry);
+    event SetDefaultOptimizer(address indexed _optimizer);
     event AddHighLiquidityToken(address indexed _token);
 
     /// @notice Create a Relay for a (m)veNFT
@@ -29,6 +33,14 @@ interface IRelayFactory {
     /// @notice Set a new Keeper Registry to be used
     /// @param _keeperRegistry      address of the new Keeper Registry
     function setKeeperRegistry(address _keeperRegistry) external;
+
+    /// @notice Set a new Optimizer Registry to be used
+    /// @param _optimizerRegistry      address of the new Optimizer Registry
+    function setOptimizerRegistry(address _optimizerRegistry) external;
+
+    /// @notice Set a new default Optimizer to be used when creating a new Relay
+    /// @param _optimizer      address of the new default Optimizer
+    function setDefaultOptimizer(address _optimizer) external;
 
     /// @notice View for all created Relays
     /// @return Array of Relays
@@ -47,6 +59,11 @@ interface IRelayFactory {
     /// @param _keeper Address of keeper queried
     /// @return True if keeper, else false
     function isKeeper(address _keeper) external view returns (bool);
+
+    /// @notice View if an address is an approved optimizer
+    /// @param _optimizer Address of optimizer queried
+    /// @return True if optimizer, else false
+    function isOptimizer(address _optimizer) external view returns (bool);
 
     /// @notice Register a token address with high liquidity
     ///         Callable by Owner

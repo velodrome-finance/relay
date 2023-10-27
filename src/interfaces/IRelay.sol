@@ -10,6 +10,15 @@ interface IRelay {
     error TokenIdNotManaged();
     /// @notice Error during initialize() if the (m)tokenID is not owned by the Relay
     error ManagedTokenNotOwned();
+    /// @notice Error during setOptimizer() if the Optimizer is not approved in the Registry
+    error OptimizerNotApproved();
+    /// @notice Error during setOptimizer() if the Optimizer is already set
+    error SameOptimizer();
+    /// @notice Error during set function if the address provided is the zero address
+    error ZeroAddress();
+
+    /// @notice Event emmited when a new optimizer is set
+    event SetOptimizer(address indexed _optimizer);
 
     /// @notice Get the name of the Relay
     function name() external view returns (string memory);
@@ -54,4 +63,10 @@ interface IRelay {
     ///         Only callable by ALLOWED_CALLER.
     /// @dev Refer to IVoter.vote()
     function vote(address[] calldata _poolVote, uint256[] calldata _weights) external;
+
+    // -------------------------------------------------
+    // ADMIN functions
+    // -------------------------------------------------
+
+    function setOptimizer(address _optimizer) external;
 }

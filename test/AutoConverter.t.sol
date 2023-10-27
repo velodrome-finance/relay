@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import "src/Relay.sol";
 import "src/Registry.sol";
 import "src/autoConverter/AutoConverter.sol";
-import "src/autoConverter/ConverterOptimizer.sol";
+import "src/Optimizer.sol";
 import "src/autoConverter/AutoConverterFactory.sol";
 
 import "@velodrome/test/BaseTest.sol";
@@ -15,8 +15,9 @@ contract AutoConverterTest is BaseTest {
 
     AutoConverterFactory autoConverterFactory;
     AutoConverter autoConverter;
-    ConverterOptimizer optimizer;
+    Optimizer optimizer;
     Registry keeperRegistry;
+    Registry optimizerRegistry;
     LockedManagedReward lockedManagedReward;
     FreeManagedReward freeManagedReward;
 
@@ -50,8 +51,9 @@ contract AutoConverterTest is BaseTest {
         voter.depositManaged(tokenId, mTokenId);
 
         keeperRegistry = new Registry(new address[](0));
+        optimizerRegistry = new Registry(new address[](0));
         // Create auto converter
-        optimizer = new ConverterOptimizer(
+        optimizer = new Optimizer(
             address(USDC),
             address(WETH),
             address(FRAX), // OP
@@ -59,12 +61,14 @@ contract AutoConverterTest is BaseTest {
             address(factory),
             address(router)
         );
+        optimizerRegistry.approve(address(optimizer));
         autoConverterFactory = new AutoConverterFactory(
             address(forwarder),
             address(voter),
             address(router),
-            address(optimizer),
             address(keeperRegistry),
+            address(optimizerRegistry),
+            address(optimizer),
             new address[](0)
         );
         escrow.approve(address(autoConverterFactory), mTokenId);
@@ -80,7 +84,7 @@ contract AutoConverterTest is BaseTest {
         vm.prank(escrow.team());
         keeperRegistry.approve(address(owner));
 
-        // Create a USDC pool for VELO, WETH, and FRAX (seen as OP in ConverterOptimizer)
+        // Create a USDC pool for VELO, WETH, and FRAX (seen as OP in Optimizer)
         deal(address(USDC), address(owner), TOKEN_100K * 3);
         deal(address(WETH), address(owner), TOKEN_1 * 3);
         deal(address(VELO), address(owner), TOKEN_1 * 3);

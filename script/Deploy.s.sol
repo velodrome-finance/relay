@@ -7,7 +7,7 @@ import "forge-std/StdJson.sol";
 import {Registry} from "src/Registry.sol";
 import {AutoCompounder} from "src/autoCompounder/AutoCompounder.sol";
 import {AutoCompounderFactory} from "src/autoCompounder/AutoCompounderFactory.sol";
-import {CompoundOptimizer} from "src/autoCompounder/CompoundOptimizer.sol";
+import {Optimizer} from "src/Optimizer.sol";
 
 contract Deploy is Script {
     using stdJson for string;
@@ -20,8 +20,9 @@ contract Deploy is Script {
     AutoCompounder public autoCompounder;
     AutoCompounderFactory public autoCompounderFactory;
     Registry public keeperRegistry;
+    Registry public optimizerRegistry;
     Registry public relayFactoryRegistry;
-    CompoundOptimizer public optimizer;
+    Optimizer public optimizer;
     string public jsonConstants;
     string public jsonOutput;
 
@@ -33,7 +34,7 @@ contract Deploy is Script {
         // load in variables
         jsonConstants = vm.readFile(path);
         address router = abi.decode(jsonConstants.parseRaw(".v2.Router"), (address));
-        // CompoundOptimizer-specific
+        // Optimizer-specific
         address USDC = abi.decode(jsonConstants.parseRaw(".USDC"), (address));
         address WETH = abi.decode(jsonConstants.parseRaw(".WETH"), (address));
         address OP = abi.decode(jsonConstants.parseRaw(".OP"), (address));
@@ -46,25 +47,32 @@ contract Deploy is Script {
 
         vm.startBroadcast(deployerAddress);
 
-        // first deploy optimizer to pass into AutoCompounderFactory
-        relayFactoryRegistry = new Registry(new address[](0));
         keeperRegistry = new Registry(new address[](0));
-        optimizer = new CompoundOptimizer(USDC, WETH, OP, VELO, poolFactory, router);
+        // first deploy optimizer to pass into AutoCompounderFactory
+        optimizer = new Optimizer(USDC, WETH, OP, VELO, poolFactory, router);
+        // optimizer needs to be approved to be set as default optimizer in relayfactory
+        optimizerRegistry = new Registry(new address[](0));
+        optimizerRegistry.approve(address(optimizer));
         autoCompounderFactory = new AutoCompounderFactory(
             forwarder,
             voter,
             router,
-            address(optimizer),
             address(keeperRegistry),
+            address(optimizerRegistry),
+            address(optimizer),
             highLiquidityTokens
         );
+
+        relayFactoryRegistry = new Registry(new address[](0));
         relayFactoryRegistry.approve(address(autoCompounderFactory));
 
         vm.stopBroadcast();
 
         path = string.concat(basePath, "output/");
         path = string.concat(path, outputFilename);
-        vm.writeJson(vm.serializeAddress("v2", "CompoundOptimizer", address(optimizer)), path);
+        // the optimizer is the default optimizer
+        vm.writeJson(vm.serializeAddress("v2", "Optimizer", address(optimizer)), path);
+        vm.writeJson(vm.serializeAddress("v2", "OptimizerRegistry", address(optimizerRegistry)), path);
         vm.writeJson(vm.serializeAddress("v2", "AutoCompounderFactory", address(autoCompounderFactory)), path);
         vm.writeJson(vm.serializeAddress("v2", "RelayFactoryRegistry", address(relayFactoryRegistry)), path);
         vm.writeJson(vm.serializeAddress("v2", "KeeperRegistry", address(keeperRegistry)), path);

@@ -4,6 +4,8 @@ pragma solidity 0.8.19;
 import {IRelay} from "./interfaces/IRelay.sol";
 import {IRelayFactory} from "./interfaces/IRelayFactory.sol";
 
+import {IOptimizer} from "./interfaces/IOptimizer.sol";
+
 import {IVoter} from "@velodrome/contracts/interfaces/IVoter.sol";
 import {IVotingEscrow} from "@velodrome/contracts/interfaces/IVotingEscrow.sol";
 import {IRewardsDistributor} from "@velodrome/contracts/interfaces/IRewardsDistributor.sol";
@@ -42,6 +44,7 @@ abstract contract Relay is
     IRewardsDistributor public immutable distributor;
     IRelayFactory public relayFactory;
 
+    IOptimizer public optimizer;
     uint256 public keeperLastRun;
 
     constructor(
@@ -49,6 +52,7 @@ abstract contract Relay is
         address _voter,
         address _admin,
         address _relayFactory,
+        address _optimizer,
         string memory _name
     ) ERC2771Context(_forwarder) {
         voter = IVoter(_voter);
@@ -56,6 +60,7 @@ abstract contract Relay is
         velo = IERC20(ve.token());
         relayFactory = IRelayFactory(_relayFactory);
         distributor = IRewardsDistributor(ve.distributor());
+        optimizer = IOptimizer(_optimizer);
 
         name = _name;
 
@@ -116,6 +121,19 @@ abstract contract Relay is
     function vote(address[] calldata _poolVote, uint256[] calldata _weights) external onlyRole(ALLOWED_CALLER) {
         voter.vote(mTokenId, _poolVote, _weights);
         keeperLastRun = block.timestamp;
+    }
+
+    // -------------------------------------------------
+    // ADMIN functions
+    // -------------------------------------------------
+
+    /// @inheritdoc IRelay
+    function setOptimizer(address _optimizer) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_optimizer == address(0)) revert ZeroAddress();
+        if (address(optimizer) == _optimizer) revert SameOptimizer();
+        if (relayFactory.isOptimizer(_optimizer)) revert OptimizerNotApproved();
+        optimizer = IOptimizer(_optimizer);
+        emit SetOptimizer(_optimizer);
     }
 
     // -------------------------------------------------

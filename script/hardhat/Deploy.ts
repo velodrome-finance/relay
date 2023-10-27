@@ -6,7 +6,7 @@ import { join } from "path";
 import { writeFile } from "fs/promises";
 import {
   Registry,
-  CompoundOptimizer,
+  Optimizer,
   AutoCompounderFactory,
 } from "../../artifacts/types";
 
@@ -32,8 +32,8 @@ async function main() {
   const keeperRegistry = await deploy<Registry>("Registry", undefined, []);
   console.log(`KeeperRegistry deployed to ${keeperRegistry.address}`);
 
-  const optimizer = await deploy<CompoundOptimizer>(
-    "CompoundOptimizer",
+  const optimizer = await deploy<Optimizer>(
+    "Optimizer",
     undefined,
     jsonConstants.USDC,
     jsonConstants.WETH,
@@ -42,31 +42,38 @@ async function main() {
     jsonConstants.v2.PoolFactory,
     jsonConstants.v2.Router
   );
-  console.log(`CompoundOptimizer deployed to: ${optimizer.address}`);
+  console.log(`Optimizer deployed to: ${optimizer.address}`);
+
+  const optimizerRegistry = await deploy<Registry>("Registry", undefined, []);
+  await optimizerRegistry.approve(optimizer.address);
   const acFactory = await deploy<AutoCompounderFactory>(
     "AutoCompounderFactory",
     undefined,
     jsonConstants.v2.Forwarder,
     jsonConstants.v2.Voter,
     jsonConstants.v2.Router,
-    optimizer.address,
     keeperRegistry.address,
+    optimizerRegistry.address,
+    optimizer.address,
     jsonConstants.highLiquidityTokens
   );
   console.log(`AutoCompounderFactory deployed to ${acFactory.address}`);
   await relayFactoryRegistry.approve(acFactory.address);
 
   interface DeployOutput {
-    Registry: string;
-    KeeperRegistry: string;
-    CompoundOptimizer: string;
+    Optimizer: string;
+    OptimizerRegistry: string;
     AutoCompounderFactory: string;
+    RelayFactoryRegistry: string;
+    KeeperRegistry: string;
   }
+
   const output: DeployOutput = {
-    Registry: relayFactoryRegistry.address,
-    KeeperRegistry: keeperRegistry.address,
-    CompoundOptimizer: optimizer.address,
+    Optimizer: optimizer.address,
+    OptimizerRegistry: optimizerRegistry.address,
     AutoCompounderFactory: acFactory.address,
+    RelayFactoryRegistry: relayFactoryRegistry.address,
+    KeeperRegistry: keeperRegistry.address,
   };
 
   const outputDirectory = "script/constants/output";

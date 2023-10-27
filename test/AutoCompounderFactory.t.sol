@@ -4,13 +4,13 @@ pragma solidity 0.8.19;
 import "test/RelayFactory.t.sol";
 
 import "src/autoCompounder/AutoCompounder.sol";
-import "src/autoCompounder/CompoundOptimizer.sol";
+import "src/Optimizer.sol";
 import "src/autoCompounder/AutoCompounderFactory.sol";
 
 contract AutoCompounderFactoryTest is RelayFactoryTest {
     AutoCompounderFactory autoCompounderFactory;
     AutoCompounder autoCompounder;
-    CompoundOptimizer optimizer;
+    Optimizer optimizer;
 
     constructor() {
         deploymentType = Deployment.FORK;
@@ -20,7 +20,8 @@ contract AutoCompounderFactoryTest is RelayFactoryTest {
     function _setUp() public override {
         escrow.setTeam(address(owner4));
         keeperRegistry = new Registry(new address[](0));
-        optimizer = new CompoundOptimizer(
+        optimizerRegistry = new Registry(new address[](0));
+        optimizer = new Optimizer(
             address(USDC),
             address(WETH),
             address(FRAX), // OP
@@ -28,12 +29,14 @@ contract AutoCompounderFactoryTest is RelayFactoryTest {
             address(factory),
             address(router)
         );
+        optimizerRegistry.approve(address(optimizer));
         autoCompounderFactory = new AutoCompounderFactory(
             address(forwarder),
             address(voter),
             address(router),
-            address(optimizer),
             address(keeperRegistry),
+            address(optimizerRegistry),
+            address(optimizer),
             new address[](0)
         );
         relayFactory = RelayFactory(autoCompounderFactory);
@@ -47,8 +50,9 @@ contract AutoCompounderFactoryTest is RelayFactoryTest {
             address(forwarder),
             address(voter),
             address(router),
-            address(optimizer),
             address(keeperRegistry),
+            address(optimizerRegistry),
+            address(optimizer),
             highLiquidityTokens
         );
         assertTrue(autoCompounderFactory.isHighLiquidityToken(address(FRAX)));

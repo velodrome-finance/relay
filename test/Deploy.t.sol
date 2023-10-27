@@ -92,7 +92,7 @@ contract TestDeploy is Script, Test {
         assertEq(deploy.autoCompounderFactory().forwarder(), forwarder);
         assertEq(deploy.autoCompounderFactory().voter(), voter);
         assertEq(deploy.autoCompounderFactory().router(), router);
-        assertEq(deploy.autoCompounderFactory().optimizer(), address(deploy.optimizer()));
+        assertEq(deploy.autoCompounderFactory().defaultOptimizer(), address(deploy.optimizer()));
         assertEq(deploy.autoCompounderFactory().highLiquidityTokensLength(), highLiquidityTokens.length);
         address[] memory deployedHighLiquidityTokens = deploy.autoCompounderFactory().highLiquidityTokens();
         for (uint256 i = 0; i < highLiquidityTokens.length; i++) {

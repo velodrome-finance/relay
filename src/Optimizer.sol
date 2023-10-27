@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.19;
 
-import {IConverterOptimizer} from "../interfaces/IConverterOptimizer.sol";
+import {IOptimizer} from "./interfaces/IOptimizer.sol";
 
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 import {IPoolFactory} from "@velodrome/contracts/interfaces/factories/IPoolFactory.sol";
@@ -9,7 +9,7 @@ import {IPool} from "@velodrome/contracts/interfaces/IPool.sol";
 
 /// @notice Helper contract to calculate optimal amountOut from the Velodrome v2 Router
 /// @author velodrome.finance, @pegahcarter, @pedrovalido
-contract ConverterOptimizer is IConverterOptimizer {
+contract Optimizer is IOptimizer {
     address public immutable weth;
     address public immutable usdc;
     address public immutable op;
@@ -81,7 +81,7 @@ contract ConverterOptimizer is IConverterOptimizer {
         }
     }
 
-    /// @inheritdoc IConverterOptimizer
+    /// @inheritdoc IOptimizer
     function getOptimalTokenToTokenRoute(
         address token0,
         address token1,
@@ -104,7 +104,11 @@ contract ConverterOptimizer is IConverterOptimizer {
                 continue;
             }
 
-            amountsOut = router.getAmountsOut(amountIn, routes);
+            try router.getAmountsOut(amountIn, routes) returns (uint256[] memory _amountsOut) {
+                amountsOut = _amountsOut;
+            } catch {
+                continue;
+            }
             // amountOut is in the third index - 0 is amountIn and 1 is the first route output
             uint256 amountOut = amountsOut[2];
             if (amountOut > optimalAmountOut) {
@@ -127,7 +131,7 @@ contract ConverterOptimizer is IConverterOptimizer {
         return singleSwapAmountOut > optimalAmountOut ? route : routes;
     }
 
-    /// @inheritdoc IConverterOptimizer
+    /// @inheritdoc IOptimizer
     function getOptimalAmountOutMin(
         IRouter.Route[] calldata routes,
         uint256 amountIn,

@@ -2,7 +2,6 @@
 pragma solidity 0.8.19;
 
 import "src/Registry.sol";
-import "src/Registry.sol";
 import "src/interfaces/IRegistry.sol";
 import "src/autoConverter/AutoConverterFactory.sol";
 import "src/autoCompounder/AutoCompounderFactory.sol";
@@ -15,6 +14,8 @@ contract RegistryTest is BaseTest {
 
     IRegistry public relayFactoryRegistry;
     IRegistry public keeperRegistry;
+    IRegistry public optimizerRegistry;
+    address public optimizer;
     address public convFactory;
     address public compFactory;
     address public testKeeper;
@@ -28,13 +29,18 @@ contract RegistryTest is BaseTest {
     function _setUp() public override {
         address[] memory approved = new address[](0);
         keeperRegistry = new Registry(approved);
+        // factory doesnt allow setting default optimizer as address(0)
+        optimizer = vm.addr(1);
+        optimizerRegistry = new Registry(approved);
+        optimizerRegistry.approve(optimizer);
         compFactory = address(
             new AutoCompounderFactory(
                 address(forwarder),
                 address(voter),
                 address(router),
-                address(0),
                 address(keeperRegistry),
+                address(optimizerRegistry),
+                optimizer,
                 new address[](0)
             )
         );
@@ -43,8 +49,9 @@ contract RegistryTest is BaseTest {
                 address(forwarder),
                 address(voter),
                 address(router),
-                address(0),
                 address(keeperRegistry),
+                address(optimizerRegistry),
+                optimizer,
                 new address[](0)
             )
         );
@@ -252,5 +259,70 @@ contract RegistryTest is BaseTest {
         vm.prank(address(owner2));
         vm.expectRevert("Ownable: caller is not the owner");
         keeperRegistry.unapprove(address(owner));
+    }
+
+    function testApproveOptimizers() public {
+        address optimizer1 = vm.addr(2);
+        assertEq(optimizerRegistry.length(), 1);
+        assertTrue(optimizerRegistry.isApproved(optimizer));
+
+        vm.expectEmit(true, false, false, true, address(optimizerRegistry));
+        emit Approve(optimizer1);
+        optimizerRegistry.approve(optimizer1);
+        assertTrue(optimizerRegistry.isApproved(optimizer1));
+
+        assertEq(optimizerRegistry.length(), 2);
+        assertEq(optimizerRegistry.getAll()[0], optimizer);
+        assertEq(optimizerRegistry.getAll()[1], optimizer1);
+    }
+
+    function testCannotApproveOptimizerIfNotOwner() public {
+        address optimizer1 = vm.addr(2);
+        assertFalse(optimizerRegistry.isApproved(optimizer1));
+        vm.prank(testKeeper);
+        vm.expectRevert("Ownable: caller is not the owner");
+        optimizerRegistry.approve(optimizer1);
+        assertEq(optimizerRegistry.length(), 1);
+        assertFalse(optimizerRegistry.isApproved(optimizer1));
+    }
+
+    function testCannotApproveOptimizerIfZeroAddress() public {
+        address optimizer1 = vm.addr(2);
+        assertFalse(optimizerRegistry.isApproved(optimizer1));
+        vm.expectRevert(IRegistry.ZeroAddress.selector);
+        optimizerRegistry.approve(address(0));
+        assertEq(optimizerRegistry.length(), 1);
+        assertFalse(optimizerRegistry.isApproved(optimizer1));
+    }
+
+    function testCannotApproveOptimizerIfAlreadyApproved() public {
+        vm.expectRevert(IRegistry.AlreadyApproved.selector);
+        optimizerRegistry.approve(optimizer);
+        assertEq(optimizerRegistry.length(), 1);
+        assertTrue(optimizerRegistry.isApproved(optimizer));
+    }
+
+    function testUnapproveOptimizer() public {
+        assertEq(optimizerRegistry.length(), 1);
+        address[] memory optimizers = optimizerRegistry.getAll();
+        assertEq(optimizers[0], optimizer);
+        assertEq(optimizers.length, 1);
+
+        vm.expectEmit(true, false, false, true, address(optimizerRegistry));
+        emit Unapprove(optimizer);
+        optimizerRegistry.unapprove(optimizer);
+        assertFalse(optimizerRegistry.isApproved(optimizer));
+        assertEq(optimizerRegistry.length(), 0);
+    }
+
+    function testCannotUnapproveOptimizerIfNotApproved() public {
+        address optimizer1 = vm.addr(2);
+        assertFalse(optimizerRegistry.isApproved(optimizer1));
+        assertEq(optimizerRegistry.length(), 1);
+
+        vm.expectRevert(IRegistry.NotApproved.selector);
+        optimizerRegistry.unapprove(optimizer1);
+        assertFalse(optimizerRegistry.isApproved(optimizer1));
+        assertEq(optimizerRegistry.length(), 1);
     }
 }

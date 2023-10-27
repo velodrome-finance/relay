@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import "src/Relay.sol";
 import "src/Registry.sol";
 import "src/autoCompounder/AutoCompounder.sol";
-import "src/autoCompounder/CompoundOptimizer.sol";
+import "src/Optimizer.sol";
 import "src/autoCompounder/AutoCompounderFactory.sol";
 
 import "@velodrome/test/BaseTest.sol";
@@ -15,8 +15,9 @@ contract AutoCompounderTest is BaseTest {
 
     AutoCompounderFactory autoCompounderFactory;
     AutoCompounder autoCompounder;
-    CompoundOptimizer optimizer;
+    Optimizer optimizer;
     Registry keeperRegistry;
+    Registry optimizerRegistry;
     LockedManagedReward lockedManagedReward;
     FreeManagedReward freeManagedReward;
 
@@ -48,7 +49,7 @@ contract AutoCompounderTest is BaseTest {
         voter.depositManaged(tokenId, mTokenId);
 
         // Create auto compounder
-        optimizer = new CompoundOptimizer(
+        optimizer = new Optimizer(
             address(USDC),
             address(WETH),
             address(FRAX), // OP
@@ -56,13 +57,16 @@ contract AutoCompounderTest is BaseTest {
             address(factory),
             address(router)
         );
+        optimizerRegistry = new Registry(new address[](0));
+        optimizerRegistry.approve(address(optimizer));
         keeperRegistry = new Registry(new address[](0));
         autoCompounderFactory = new AutoCompounderFactory(
             address(forwarder),
             address(voter),
             address(router),
-            address(optimizer),
             address(keeperRegistry),
+            address(optimizerRegistry),
+            address(optimizer),
             new address[](0)
         );
         escrow.approve(address(autoCompounderFactory), mTokenId);
@@ -76,7 +80,7 @@ contract AutoCompounderTest is BaseTest {
         vm.prank(escrow.team());
         keeperRegistry.approve(address(owner));
 
-        // Create a VELO pool for USDC, WETH, and FRAX (seen as OP in CompoundOptimizer)
+        // Create a VELO pool for USDC, WETH, and FRAX (seen as OP in Optimizer)
         deal(address(VELO), address(owner), TOKEN_100K * 3);
         deal(address(WETH), address(owner), TOKEN_1 * 3);
 
@@ -116,6 +120,10 @@ contract AutoCompounderTest is BaseTest {
 
     function testKeeperLastRunSetup() public {
         assertEq(autoCompounder.keeperLastRun(), 0);
+    }
+
+    function testOptimizerSetup() public {
+        assertFalse(address(autoCompounder.optimizer()) == address(0));
     }
 
     function testManagedTokenID() public {
@@ -359,7 +367,7 @@ contract AutoCompounderTest is BaseTest {
         autoCompounder.multicall(calls);
 
         // validate the amount received by caller and balance increased to (m)veNFT equal
-        // the amount out of the optionalRoute over the CompoundOptimizer suggested route
+        // the amount out of the optionalRoute over the Optimizer suggested route
         uint256 balanceOwnerDelta = VELO.balanceOf(address(owner)) - balanceOwnerBefore;
         uint256 balanceNFTDelta = escrow.balanceOfNFT(mTokenId) - balanceNFTBefore;
         assertEq(balanceOwnerDelta + balanceNFTDelta, amountOut);
@@ -402,7 +410,7 @@ contract AutoCompounderTest is BaseTest {
         autoCompounder.multicall(calls);
 
         // validate the amount received by caller and balance increased to (m)veNFT equal
-        // the amount out of the optionalRoute over the CompoundOptimizer suggested route
+        // the amount out of the optionalRoute over the Optimizer suggested route
         uint256 balanceOwnerDelta = VELO.balanceOf(address(owner)) - balanceOwnerBefore;
         uint256 balanceNFTDelta = escrow.balanceOfNFT(mTokenId) - balanceNFTBefore;
         assertEq(balanceOwnerDelta + balanceNFTDelta, amountOut);
@@ -436,7 +444,7 @@ contract AutoCompounderTest is BaseTest {
     function testSwapTokenToVELOWithOptionalRouteAndCompoundIfOnlyRoute() public {
         // create a new pool with
         //  - liquidity of the mock token to VELO
-        // For a token that does NOT have a route supported by CompoundOptimizer
+        // For a token that does NOT have a route supported by Optimizer
         MockERC20 mockToken = new MockERC20("Mock Token", "MOCK", 18);
         deal(address(mockToken), address(owner), TOKEN_1 * 3);
         deal(address(VELO), address(owner), TOKEN_100M + TOKEN_1 * 3);
@@ -660,7 +668,7 @@ contract AutoCompounderTest is BaseTest {
         tokensToSweep.push(address(USDC));
         recipients.push(address(0));
         vm.prank(escrow.team());
-        vm.expectRevert(IAutoCompounder.ZeroAddress.selector);
+        vm.expectRevert(IRelay.ZeroAddress.selector);
         autoCompounder.sweep(tokensToSweep, recipients);
     }
 

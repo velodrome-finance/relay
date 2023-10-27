@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.19;
 
-import {IConverterOptimizer} from "../interfaces/IConverterOptimizer.sol";
+import {IOptimizer} from "../interfaces/IOptimizer.sol";
 import {IAutoConverter} from "../interfaces/IAutoConverter.sol";
 import {IRelayFactory} from "../interfaces/IRelayFactory.sol";
 
@@ -26,7 +26,6 @@ contract AutoConverter is IAutoConverter, Relay {
 
     IRelayFactory public immutable autoConverterFactory;
     IRouter public immutable router;
-    IConverterOptimizer public immutable optimizer;
 
     address public token;
     mapping(uint256 epoch => uint256 amount) public amountTokenEarned;
@@ -40,11 +39,10 @@ contract AutoConverter is IAutoConverter, Relay {
         address _token,
         address _optimizer,
         address _relayFactory
-    ) Relay(_forwarder, _voter, _admin, _relayFactory, _name) {
+    ) Relay(_forwarder, _voter, _admin, _relayFactory, _optimizer, _name) {
         autoConverterFactory = IRelayFactory(_msgSender());
         router = IRouter(_router);
         token = _token;
-        optimizer = IConverterOptimizer(_optimizer);
 
         // Default admin can grant/revoke ALLOWED_CALLER roles
         // See `ALLOWED_CALLER functions` section for permissions
@@ -100,7 +98,7 @@ contract AutoConverter is IAutoConverter, Relay {
 
         // If an optional route was provided, compare the amountOut with the hardcoded optimizer amountOut to determine which
         // route has a better rate
-        // Used if optional route is not direct _token => token as this route is already calculated by CompoundOptimizer
+        // Used if optional route is not direct _token => token as this route is already calculated by Optimizer
         uint256 optionalRouteLen = _optionalRoute.length;
         if (optionalRouteLen > 1) {
             if (_optionalRoute[0].from != _token) revert InvalidPath();

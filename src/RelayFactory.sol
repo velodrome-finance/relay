@@ -14,7 +14,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
 /// @title RelayFactory
-/// @author velodrome.finance, @airtoonricardo, @pegahcarter
+/// @author velodrome.finance, @airtoonricardo, @pegahcarter, @pedrovalido
 /// @notice Factory contract to create Relays and manage their authorized callers
 abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -23,8 +23,11 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
     address public immutable router;
     address public immutable voter;
 
+    address public defaultOptimizer;
+
     IVotingEscrow public immutable ve;
     IRegistry public keeperRegistry;
+    IRegistry public optimizerRegistry;
 
     EnumerableSet.AddressSet internal _relays;
 
@@ -35,14 +38,20 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
         address _voter,
         address _router,
         address _keeperRegistry,
+        address _optimizerRegistry,
+        address _defaultOptimizer,
         address[] memory highLiquidityTokens_
     ) ERC2771Context(_forwarder) {
         forwarder = _forwarder;
         voter = _voter;
         router = _router;
 
-        keeperRegistry = IRegistry(_keeperRegistry);
         ve = IVotingEscrow(IVoter(voter).ve());
+
+        keeperRegistry = IRegistry(_keeperRegistry);
+        optimizerRegistry = IRegistry(_optimizerRegistry);
+
+        _setDefaultOptimizer(_defaultOptimizer);
 
         uint256 length = highLiquidityTokens_.length;
         for (uint256 i = 0; i < length; i++) {
@@ -95,6 +104,27 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
     }
 
     /// @inheritdoc IRelayFactory
+    function setOptimizerRegistry(address _optimizerRegistry) external onlyOwner {
+        if (_optimizerRegistry == address(0)) revert ZeroAddress();
+        if (address(optimizerRegistry) == _optimizerRegistry) revert SameRegistry();
+        optimizerRegistry = IRegistry(_optimizerRegistry);
+        emit SetOptimizerRegistry(_optimizerRegistry);
+    }
+
+    /// @inheritdoc IRelayFactory
+    function setDefaultOptimizer(address _defaultOptimizer) external onlyOwner {
+        _setDefaultOptimizer(_defaultOptimizer);
+    }
+
+    function _setDefaultOptimizer(address _defaultOptimizer) private {
+        if (_defaultOptimizer == address(0)) revert ZeroAddress();
+        if (defaultOptimizer == _defaultOptimizer) revert SameOptimizer();
+        if (!optimizerRegistry.isApproved(_defaultOptimizer)) revert OptimizerNotApproved();
+        defaultOptimizer = _defaultOptimizer;
+        emit SetDefaultOptimizer(_defaultOptimizer);
+    }
+
+    /// @inheritdoc IRelayFactory
     function relays() external view returns (address[] memory) {
         return _relays.values();
     }
@@ -112,6 +142,11 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
     /// @inheritdoc IRelayFactory
     function isKeeper(address _keeper) external view returns (bool) {
         return keeperRegistry.isApproved(_keeper);
+    }
+
+    /// @inheritdoc IRelayFactory
+    function isOptimizer(address _optimizer) external view returns (bool) {
+        return optimizerRegistry.isApproved(_optimizer);
     }
 
     /// @inheritdoc IRelayFactory

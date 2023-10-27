@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {IRouter} from "@velodrome/contracts/interfaces/IRouter.sol";
 
-interface IConverterOptimizer {
+interface IOptimizer {
     error NotEnoughPoints();
 
     function usdc() external view returns (address);
@@ -16,10 +16,10 @@ interface IConverterOptimizer {
 
     function factory() external view returns (address);
 
-    /// @notice Given a token and the amountIn, return the route to return the most token1 given 5 potential routes
+    /// @notice Given a token and the amountIn, return the route to return the most token1 given 7 potential routes
     ///             of v2 Velodrome pools
     ///         If all potential routes return an amountOut of 0, returns 0
-    /// @dev The potential routes are stored in the CompoundOptimizer
+    /// @dev The potential routes are stored in the Optimizer
     /// @param token0    Address of token to swap from
     /// @param token1    Address of token to swap to
     /// @param amountIn Amount of token to swap

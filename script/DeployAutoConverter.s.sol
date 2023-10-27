@@ -7,7 +7,7 @@ import "forge-std/StdJson.sol";
 import {Registry} from "src/Registry.sol";
 import {AutoConverter} from "src/autoConverter/AutoConverter.sol";
 import {AutoConverterFactory} from "src/autoConverter/AutoConverterFactory.sol";
-import {ConverterOptimizer} from "src/autoConverter/ConverterOptimizer.sol";
+import {Optimizer} from "src/Optimizer.sol";
 
 contract DeployAutoConverter is Script {
     using stdJson for string;
@@ -20,8 +20,9 @@ contract DeployAutoConverter is Script {
     AutoConverter public autoConverter;
     AutoConverterFactory public autoConverterFactory;
     Registry public keeperRegistry;
+    Registry public optimizerRegistry;
     Registry public relayFactoryRegistry;
-    ConverterOptimizer public optimizer;
+    Optimizer public optimizer;
     string public jsonConstants;
     string public jsonOutput;
 
@@ -33,33 +34,28 @@ contract DeployAutoConverter is Script {
         // load in variables
         jsonConstants = vm.readFile(path);
         address router = abi.decode(jsonConstants.parseRaw(".v2.Router"), (address));
-        // ConverterOptimizer-specific
-        address USDC = abi.decode(jsonConstants.parseRaw(".USDC"), (address));
-        address WETH = abi.decode(jsonConstants.parseRaw(".WETH"), (address));
-        address OP = abi.decode(jsonConstants.parseRaw(".OP"), (address));
-        address VELO = abi.decode(jsonConstants.parseRaw(".v2.VELO"), (address));
-        address poolFactory = abi.decode(jsonConstants.parseRaw(".v2.PoolFactory"), (address));
         // AutoConverterFactory-specific
         address forwarder = abi.decode(jsonConstants.parseRaw(".v2.Forwarder"), (address));
         address voter = abi.decode(jsonConstants.parseRaw(".v2.Voter"), (address));
         address[] memory highLiquidityTokens = abi.decode(jsonConstants.parseRaw(".highLiquidityTokens"), (address[]));
-
-        vm.startBroadcast(deployerAddress);
-
-        optimizer = new ConverterOptimizer(USDC, WETH, OP, VELO, poolFactory, router);
 
         path = string.concat(basePath, "output/");
         path = string.concat(path, outputFilename);
         jsonOutput = vm.readFile(path);
         relayFactoryRegistry = Registry(abi.decode(jsonOutput.parseRaw(".RelayFactoryRegistry"), (address)));
         keeperRegistry = Registry(abi.decode(jsonOutput.parseRaw(".KeeperRegistry"), (address)));
+        optimizerRegistry = Registry(abi.decode(jsonOutput.parseRaw(".OptimizerRegistry"), (address)));
+        optimizer = Optimizer(abi.decode(jsonOutput.parseRaw(".Optimizer"), (address)));
+
+        vm.startBroadcast(deployerAddress);
 
         autoConverterFactory = new AutoConverterFactory(
             forwarder,
             voter,
             router,
-            address(optimizer),
             address(keeperRegistry),
+            address(optimizerRegistry),
+            address(optimizer),
             highLiquidityTokens
         );
         relayFactoryRegistry.approve(address(autoConverterFactory));
@@ -68,7 +64,6 @@ contract DeployAutoConverter is Script {
 
         path = string.concat(basePath, "output/DeployAutoConverter-");
         path = string.concat(path, outputFilename);
-        vm.writeJson(vm.serializeAddress("v2", "ConverterOptimizer", address(optimizer)), path);
         vm.writeJson(vm.serializeAddress("v2", "AutoConverterFactory", address(autoConverterFactory)), path);
     }
 }

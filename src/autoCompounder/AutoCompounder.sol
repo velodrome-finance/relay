@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.19;
 
-import {ICompoundOptimizer} from "../interfaces/ICompoundOptimizer.sol";
+import {IOptimizer} from "../interfaces/IOptimizer.sol";
 import {IAutoCompounder} from "../interfaces/IAutoCompounder.sol";
 import {IAutoCompounderFactory} from "../interfaces/IAutoCompounderFactory.sol";
 
@@ -24,7 +24,6 @@ contract AutoCompounder is IAutoCompounder, Relay {
 
     IAutoCompounderFactory public immutable autoCompounderFactory;
     IRouter public immutable router;
-    ICompoundOptimizer public immutable optimizer;
 
     mapping(uint256 epoch => uint256 amount) public amountTokenEarned;
 
@@ -36,10 +35,9 @@ contract AutoCompounder is IAutoCompounder, Relay {
         address _router,
         address _optimizer,
         address _relayFactory
-    ) Relay(_forwarder, _voter, _admin, _relayFactory, _name) {
+    ) Relay(_forwarder, _voter, _admin, _relayFactory, _optimizer, _name) {
         autoCompounderFactory = IAutoCompounderFactory(_msgSender());
         router = IRouter(_router);
-        optimizer = ICompoundOptimizer(_optimizer);
 
         _grantRole(ALLOWED_CALLER, _admin);
     }
@@ -102,12 +100,12 @@ contract AutoCompounder is IAutoCompounder, Relay {
         uint256 balance = IERC20(_token).balanceOf(address(this));
         if (balance == 0) revert AmountInZero();
 
-        IRouter.Route[] memory routes = optimizer.getOptimalTokenToVeloRoute(_token, balance);
+        IRouter.Route[] memory routes = optimizer.getOptimalTokenToTokenRoute(_token, address(velo), balance);
         uint256 amountOutMin = optimizer.getOptimalAmountOutMin(routes, balance, POINTS, _slippage);
 
         // If an optional route was provided, compare the amountOut with the hardcoded optimizer amountOut to determine which
         // route has a better rate
-        // Used if optional route is not direct _token => VELO as this route is already calculated by CompoundOptimizer
+        // Used if optional route is not direct _token => VELO as this route is already calculated by Optimizer
         uint256 optionalRouteLen = _optionalRoute.length;
         if (optionalRouteLen > 1) {
             if (_optionalRoute[0].from != _token) revert InvalidPath();
