@@ -1,6 +1,7 @@
 {
-  "AutoCompounderFactory": "0x63b7077f8179fF930c96A9c4817Dde339Af6e466",
-  "CompoundOptimizer": "0x916CEFbc3A2c14A49c8661C03D0731431382dCB2",
-  "KeeperRegistry": "0xDB8f1909FcA704597Eb186fea188ECc6b728332B",
-  "RelayFactoryRegistry": "0x1C33BA7a5F4F2E80622d603A9E5e54294410f6d9"
+  "AutoCompounderFactory": "0x103935f12063c1AbCe28Aa322EFE9eA9bc63ca71",
+  "KeeperRegistry": "0xfe97A8c1C90c829a246914f9576cbdA6D26A5AA2",
+  "Optimizer": "0x2b0547920a21C0496742e92ddDC6483Db227a130",
+  "OptimizerRegistry": "0xC357369855289DE6e6cEA50C6FdCB327ec4357c9",
+  "RelayFactoryRegistry": "0xe9F00f2e61CB0c6fb00A2e457546aCbF0fC303C2"
 }
