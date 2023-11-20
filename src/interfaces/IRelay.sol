@@ -68,5 +68,8 @@ interface IRelay {
     // ADMIN functions
     // -------------------------------------------------
 
+    /// @notice Sets an optimizer to be used by the Relay.
+    ///         Only callable by DEFAULT_ADMIN_ROLE.
+    /// @param _optimizer Address of the Optimizer to set
     function setOptimizer(address _optimizer) external;
 }

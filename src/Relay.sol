@@ -131,7 +131,7 @@ abstract contract Relay is
     function setOptimizer(address _optimizer) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_optimizer == address(0)) revert ZeroAddress();
         if (address(optimizer) == _optimizer) revert SameOptimizer();
-        if (relayFactory.isOptimizer(_optimizer)) revert OptimizerNotApproved();
+        if (!relayFactory.isOptimizer(_optimizer)) revert OptimizerNotApproved();
         optimizer = IOptimizer(_optimizer);
         emit SetOptimizer(_optimizer);
     }

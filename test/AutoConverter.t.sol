@@ -370,4 +370,33 @@ contract AutoConverterTest is BaseTest {
         assertEq(balanceBefore + amount, WETH.balanceOf(address(owner3)));
         assertEq(WETH.balanceOf(address(autoConverter)), 0);
     }
+
+    function testCannotSetOptimizerIfNotApproved() public {
+        address unapprovedOptimizer = vm.addr(0x123);
+        vm.expectRevert(IRelay.OptimizerNotApproved.selector);
+        autoConverter.setOptimizer(unapprovedOptimizer);
+    }
+
+    function testCannotSetOptimizerToZeroAddress() public {
+        vm.expectRevert(IRelay.ZeroAddress.selector);
+        autoConverter.setOptimizer(address(0));
+    }
+
+    function testSetOptimizer() public {
+        address approvedOptimizer = vm.addr(0x123);
+        optimizerRegistry.approve(approvedOptimizer);
+        autoConverter.setOptimizer(approvedOptimizer);
+        assertEq(address(autoConverter.optimizer()), approvedOptimizer);
+    }
+
+    function testCannotSetOptimizerIfNotAdmin() public {
+        address approvedOptimizer = vm.addr(0x123);
+        optimizerRegistry.approve(approvedOptimizer);
+        bytes memory revertString = bytes(
+            "AccessControl: account 0x7d28001937fe8e131f76dae9e9947adedbd0abde is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
+        );
+        vm.prank(address(owner2));
+        vm.expectRevert(revertString);
+        autoConverter.setOptimizer(approvedOptimizer);
+    }
 }
