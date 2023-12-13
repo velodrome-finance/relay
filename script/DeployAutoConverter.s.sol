@@ -35,7 +35,6 @@ contract DeployAutoConverter is Script {
         jsonConstants = vm.readFile(path);
         address router = abi.decode(jsonConstants.parseRaw(".v2.Router"), (address));
         // AutoConverterFactory-specific
-        address forwarder = abi.decode(jsonConstants.parseRaw(".v2.Forwarder"), (address));
         address voter = abi.decode(jsonConstants.parseRaw(".v2.Voter"), (address));
         address[] memory highLiquidityTokens = abi.decode(jsonConstants.parseRaw(".highLiquidityTokens"), (address[]));
 
@@ -50,7 +49,6 @@ contract DeployAutoConverter is Script {
         vm.startBroadcast(deployerAddress);
 
         autoConverterFactory = new AutoConverterFactory(
-            forwarder,
             voter,
             router,
             address(keeperRegistry),

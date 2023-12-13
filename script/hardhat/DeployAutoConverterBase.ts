@@ -34,7 +34,6 @@ async function main() {
   const acFactory = await deploy<AutoConverterFactory>(
     "AutoConverterFactory",
     undefined,
-    jsonConstants.v2.Forwarder,
     jsonConstants.v2.Voter,
     jsonConstants.v2.Router,
     jsonOutput.KeeperRegistry,

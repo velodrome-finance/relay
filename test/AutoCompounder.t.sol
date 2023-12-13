@@ -61,7 +61,6 @@ contract AutoCompounderTest is BaseTest {
         optimizerRegistry.approve(address(optimizer));
         keeperRegistry = new Registry(new address[](0));
         autoCompounderFactory = new AutoCompounderFactory(
-            address(forwarder),
             address(voter),
             address(router),
             address(keeperRegistry),
@@ -139,7 +138,6 @@ contract AutoCompounderTest is BaseTest {
 
     function testCannotInitializeTokenNotOwned() external {
         AutoCompounder comp = new AutoCompounder(
-            address(forwarder),
             address(voter),
             address(owner),
             "",
@@ -155,7 +153,6 @@ contract AutoCompounderTest is BaseTest {
 
     function testCannotInitializeTokenNotManaged() external {
         AutoCompounder comp = new AutoCompounder(
-            address(forwarder),
             address(voter),
             address(owner),
             "",

@@ -31,7 +31,6 @@ contract AutoCompounderFactoryTest is RelayFactoryTest {
         );
         optimizerRegistry.approve(address(optimizer));
         autoCompounderFactory = new AutoCompounderFactory(
-            address(forwarder),
             address(voter),
             address(router),
             address(keeperRegistry),
@@ -47,7 +46,6 @@ contract AutoCompounderFactoryTest is RelayFactoryTest {
         highLiquidityTokens[0] = address(FRAX);
         highLiquidityTokens[1] = address(USDC);
         autoCompounderFactory = new AutoCompounderFactory(
-            address(forwarder),
             address(voter),
             address(router),
             address(keeperRegistry),

@@ -9,17 +9,14 @@ import {IVotingEscrow} from "@velodrome/contracts/interfaces/IVotingEscrow.sol";
 import {IVoter} from "@velodrome/contracts/interfaces/IVoter.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
 /// @title RelayFactory
 /// @author velodrome.finance, @airtoonricardo, @pegahcarter, @pedrovalido
 /// @notice Factory contract to create Relays and manage their authorized callers
-abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
+abstract contract RelayFactory is IRelayFactory, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    address public immutable forwarder;
     address public immutable router;
     address public immutable voter;
 
@@ -34,15 +31,13 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
     EnumerableSet.AddressSet private _highLiquidityTokens;
 
     constructor(
-        address _forwarder,
         address _voter,
         address _router,
         address _keeperRegistry,
         address _optimizerRegistry,
         address _defaultOptimizer,
         address[] memory highLiquidityTokens_
-    ) ERC2771Context(_forwarder) {
-        forwarder = _forwarder;
+    ) {
         voter = _voter;
         router = _router;
 
@@ -78,10 +73,9 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
         string calldata _name,
         bytes calldata _data
     ) external returns (address relay) {
-        address sender = _msgSender();
         if (_admin == address(0)) revert ZeroAddress();
         if (_mTokenId == 0) revert TokenIdZero();
-        if (!ve.isApprovedOrOwner(sender, _mTokenId)) revert TokenIdNotApproved();
+        if (!ve.isApprovedOrOwner(msg.sender, _mTokenId)) revert TokenIdNotApproved();
         if (ve.escrowType(_mTokenId) != IVotingEscrow.EscrowType.MANAGED) revert TokenIdNotManaged();
 
         // create the relay contract
@@ -92,7 +86,7 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
         Relay(relay).initialize(_mTokenId);
 
         _relays.add(relay);
-        emit CreateRelay(sender, _admin, _name, relay);
+        emit CreateRelay(msg.sender, _admin, _name, relay);
     }
 
     /// @inheritdoc IRelayFactory
@@ -174,17 +168,5 @@ abstract contract RelayFactory is IRelayFactory, ERC2771Context, Ownable {
     /// @inheritdoc IRelayFactory
     function highLiquidityTokensLength() external view returns (uint256) {
         return _highLiquidityTokens.length();
-    }
-
-    // -------------------------------------------------
-    // Overrides
-    // -------------------------------------------------
-
-    function _msgData() internal view override(ERC2771Context, Context) returns (bytes calldata) {
-        return ERC2771Context._msgData();
-    }
-
-    function _msgSender() internal view override(ERC2771Context, Context) returns (address) {
-        return ERC2771Context._msgSender();
     }
 }

@@ -41,7 +41,6 @@ contract Deploy is Script {
         address VELO = abi.decode(jsonConstants.parseRaw(".v2.VELO"), (address));
         address poolFactory = abi.decode(jsonConstants.parseRaw(".v2.PoolFactory"), (address));
         // AutoCompounderFactory-specific
-        address forwarder = abi.decode(jsonConstants.parseRaw(".v2.Forwarder"), (address));
         address voter = abi.decode(jsonConstants.parseRaw(".v2.Voter"), (address));
         address[] memory highLiquidityTokens = abi.decode(jsonConstants.parseRaw(".highLiquidityTokens"), (address[]));
 
@@ -54,7 +53,6 @@ contract Deploy is Script {
         optimizerRegistry = new Registry(new address[](0));
         optimizerRegistry.approve(address(optimizer));
         autoCompounderFactory = new AutoCompounderFactory(
-            forwarder,
             voter,
             router,
             address(keeperRegistry),

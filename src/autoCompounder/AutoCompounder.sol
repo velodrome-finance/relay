@@ -28,15 +28,14 @@ contract AutoCompounder is IAutoCompounder, Relay {
     mapping(uint256 epoch => uint256 amount) public amountTokenEarned;
 
     constructor(
-        address _forwarder,
         address _voter,
         address _admin,
         string memory _name,
         address _router,
         address _optimizer,
         address _relayFactory
-    ) Relay(_forwarder, _voter, _admin, _relayFactory, _optimizer, _name) {
-        autoCompounderFactory = IAutoCompounderFactory(_msgSender());
+    ) Relay(_voter, _admin, _relayFactory, _optimizer, _name) {
+        autoCompounderFactory = IAutoCompounderFactory(msg.sender);
         router = IRouter(_router);
 
         _grantRole(ALLOWED_CALLER, _admin);
@@ -137,12 +136,11 @@ contract AutoCompounder is IAutoCompounder, Relay {
             keeperLastRun = block.timestamp;
         }
 
-        emit SwapTokenToVELO(_msgSender(), _token, balance, amountsOut[amountsOut.length - 1], routes);
+        emit SwapTokenToVELO(msg.sender, _token, balance, amountsOut[amountsOut.length - 1], routes);
     }
 
     /// @inheritdoc IAutoCompounder
     function rewardAndCompound() external onlyLastDayOfEpoch {
-        address sender = _msgSender();
         uint256 balance = velo.balanceOf(address(this));
         uint256 reward;
 
@@ -155,9 +153,9 @@ contract AutoCompounder is IAutoCompounder, Relay {
             reward = compoundRewardAmount < factoryRewardAmount ? compoundRewardAmount : factoryRewardAmount;
 
             if (reward > 0) {
-                velo.transfer(sender, reward);
+                velo.transfer(msg.sender, reward);
             }
-            emit Reward(sender, reward);
+            emit Reward(msg.sender, reward);
         }
         compound();
     }

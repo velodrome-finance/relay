@@ -31,7 +31,6 @@ contract AutoConverter is IAutoConverter, Relay {
     mapping(uint256 epoch => uint256 amount) public amountTokenEarned;
 
     constructor(
-        address _forwarder,
         address _voter,
         address _admin,
         string memory _name,
@@ -39,8 +38,8 @@ contract AutoConverter is IAutoConverter, Relay {
         address _token,
         address _optimizer,
         address _relayFactory
-    ) Relay(_forwarder, _voter, _admin, _relayFactory, _optimizer, _name) {
-        autoConverterFactory = IRelayFactory(_msgSender());
+    ) Relay(_voter, _admin, _relayFactory, _optimizer, _name) {
+        autoConverterFactory = IRelayFactory(msg.sender);
         router = IRouter(_router);
         token = _token;
 
@@ -130,7 +129,7 @@ contract AutoConverter is IAutoConverter, Relay {
             keeperLastRun = block.timestamp;
         }
 
-        emit SwapTokenToToken(_msgSender(), _token, balance, amountsOut[amountsOut.length - 1], routes);
+        emit SwapTokenToToken(msg.sender, _token, balance, amountsOut[amountsOut.length - 1], routes);
     }
 
     // -------------------------------------------------

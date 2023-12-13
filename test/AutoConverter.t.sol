@@ -63,7 +63,6 @@ contract AutoConverterTest is BaseTest {
         );
         optimizerRegistry.approve(address(optimizer));
         autoConverterFactory = new AutoConverterFactory(
-            address(forwarder),
             address(voter),
             address(router),
             address(keeperRegistry),
@@ -149,7 +148,6 @@ contract AutoConverterTest is BaseTest {
 
     function testCannotInitializeTokenNotOwned() external {
         AutoConverter comp = new AutoConverter(
-            address(forwarder),
             address(voter),
             address(owner),
             "",
@@ -166,7 +164,6 @@ contract AutoConverterTest is BaseTest {
 
     function testCannotInitializeTokenNotManaged() external {
         AutoConverter comp = new AutoConverter(
-            address(forwarder),
             address(voter),
             address(owner),
             "",

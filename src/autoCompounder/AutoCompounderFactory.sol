@@ -8,7 +8,6 @@ import {RelayFactory} from "../RelayFactory.sol";
 import {IVotingEscrow} from "@velodrome/contracts/interfaces/IVotingEscrow.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 
 /// @title AutoCompounderFactory
 /// @author velodrome.finance, @pegahcarter, @airtoonricardo
@@ -24,33 +23,20 @@ contract AutoCompounderFactory is IAutoCompounderFactory, RelayFactory {
     uint256 public constant MIN_REWARD_AMOUNT = 1e17;
 
     constructor(
-        address _forwarder,
         address _voter,
         address _router,
         address _keeperRegistry,
         address _optimizerRegistry,
         address _defaultOptimizer,
         address[] memory highLiquidityTokens_
-    )
-        RelayFactory(
-            _forwarder,
-            _voter,
-            _router,
-            _keeperRegistry,
-            _optimizerRegistry,
-            _defaultOptimizer,
-            highLiquidityTokens_
-        )
-    {}
+    ) RelayFactory(_voter, _router, _keeperRegistry, _optimizerRegistry, _defaultOptimizer, highLiquidityTokens_) {}
 
     function _deployRelayInstance(
         address _admin,
         string calldata _name,
         bytes calldata //_data
     ) internal override returns (address autoCompounder) {
-        autoCompounder = address(
-            new AutoCompounder(forwarder, voter, _admin, _name, router, defaultOptimizer, address(this))
-        );
+        autoCompounder = address(new AutoCompounder(voter, _admin, _name, router, defaultOptimizer, address(this)));
     }
 
     /// @inheritdoc IAutoCompounderFactory

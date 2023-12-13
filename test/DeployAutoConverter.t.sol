@@ -24,7 +24,6 @@ contract TestDeployAutoConverter is Script, Test {
 
     address router;
     address USDC;
-    address forwarder;
     address voter;
 
     Deploy deploy;
@@ -50,7 +49,6 @@ contract TestDeployAutoConverter is Script, Test {
         jsonConstants = vm.readFile(path);
         USDC = abi.decode(jsonConstants.parseRaw(".USDC"), (address));
         router = abi.decode(jsonConstants.parseRaw(".v2.Router"), (address));
-        forwarder = abi.decode(jsonConstants.parseRaw(".v2.Forwarder"), (address));
         voter = abi.decode(jsonConstants.parseRaw(".v2.Voter"), (address));
 
         // use test account for deployment
@@ -61,7 +59,6 @@ contract TestDeployAutoConverter is Script, Test {
     function testLoadedState() public {
         assertTrue(router != address(0));
         assertTrue(USDC != address(0));
-        assertTrue(forwarder != address(0));
         assertTrue(voter != address(0));
     }
 
@@ -72,7 +69,6 @@ contract TestDeployAutoConverter is Script, Test {
         assertTrue(address(deployAutoConverter.autoConverterFactory()) != address(0));
 
         // AutoConverterFactory state checks
-        assertEq(deployAutoConverter.autoConverterFactory().forwarder(), forwarder);
         assertEq(deployAutoConverter.autoConverterFactory().voter(), voter);
         assertEq(deployAutoConverter.autoConverterFactory().router(), router);
 

@@ -35,7 +35,6 @@ contract RegistryTest is BaseTest {
         optimizerRegistry.approve(optimizer);
         compFactory = address(
             new AutoCompounderFactory(
-                address(forwarder),
                 address(voter),
                 address(router),
                 address(keeperRegistry),
@@ -46,7 +45,6 @@ contract RegistryTest is BaseTest {
         );
         convFactory = address(
             new AutoConverterFactory(
-                address(forwarder),
                 address(voter),
                 address(router),
                 address(keeperRegistry),

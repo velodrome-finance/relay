@@ -48,7 +48,6 @@ async function main() {
   const acFactory = await deploy<AutoCompounderFactory>(
     "AutoCompounderFactory",
     undefined,
-    jsonConstants.v2.Forwarder,
     jsonConstants.v2.Voter,
     jsonConstants.v2.Router,
     keeperRegistry.address,

@@ -25,7 +25,6 @@ contract AutoConverterFactoryTest is RelayFactoryTest {
         optimizerRegistry = new Registry(new address[](0));
         optimizerRegistry.approve(randomOptimizerAddress);
         autoConverterFactory = new AutoConverterFactory(
-            address(forwarder),
             address(voter),
             address(router),
             address(keeperRegistry),

@@ -24,7 +24,6 @@ contract TestDeploy is Script, Test {
     address OP;
     address VELO;
     address poolFactory;
-    address forwarder;
     address voter;
     address[] highLiquidityTokens;
 
@@ -55,7 +54,6 @@ contract TestDeploy is Script, Test {
         VELO = abi.decode(jsonConstants.parseRaw(".v2.VELO"), (address));
         poolFactory = abi.decode(jsonConstants.parseRaw(".v2.PoolFactory"), (address));
         // AutoCompounderFactory-specific
-        forwarder = abi.decode(jsonConstants.parseRaw(".v2.Forwarder"), (address));
         voter = abi.decode(jsonConstants.parseRaw(".v2.Voter"), (address));
         address[] memory _highLiquidityTokens = abi.decode(jsonConstants.parseRaw(".highLiquidityTokens"), (address[]));
         highLiquidityTokens = new address[](_highLiquidityTokens.length);
@@ -74,7 +72,6 @@ contract TestDeploy is Script, Test {
         assertTrue(OP != address(0));
         assertTrue(VELO != address(0));
         assertTrue(poolFactory != address(0));
-        assertTrue(forwarder != address(0));
         assertTrue(voter != address(0));
         assertTrue(highLiquidityTokens.length > 0);
     }
@@ -89,7 +86,6 @@ contract TestDeploy is Script, Test {
         assertEq(deploy.autoCompounderFactory().rewardAmount(), 10 * 1e18);
         assertEq(deploy.autoCompounderFactory().MAX_REWARD_AMOUNT(), 1_000 * 1e18);
         assertEq(deploy.autoCompounderFactory().MIN_REWARD_AMOUNT(), 1e17);
-        assertEq(deploy.autoCompounderFactory().forwarder(), forwarder);
         assertEq(deploy.autoCompounderFactory().voter(), voter);
         assertEq(deploy.autoCompounderFactory().router(), router);
         assertEq(deploy.autoCompounderFactory().defaultOptimizer(), address(deploy.optimizer()));

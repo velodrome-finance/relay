@@ -13,9 +13,7 @@ import {IRewardsDistributor} from "@velodrome/contracts/interfaces/IRewardsDistr
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import {AccessControlEnumerable} from "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
@@ -23,14 +21,7 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 /// @author velodrome.finance, @pedrovalido, @airtoonricardo, @pegahcarter
 /// @notice Velodrome base Relay contract to manage a (m)veNFT
 /// @dev Inherit this contract to your custom Relay implementation
-abstract contract Relay is
-    IRelay,
-    ERC2771Context,
-    ERC721Holder,
-    ReentrancyGuard,
-    AccessControlEnumerable,
-    Initializable
-{
+abstract contract Relay is IRelay, ERC721Holder, ReentrancyGuard, AccessControlEnumerable, Initializable {
     using SafeERC20 for IERC20;
 
     bytes32 public constant ALLOWED_CALLER = keccak256("ALLOWED_CALLER");
@@ -47,14 +38,7 @@ abstract contract Relay is
     IOptimizer public optimizer;
     uint256 public keeperLastRun;
 
-    constructor(
-        address _forwarder,
-        address _voter,
-        address _admin,
-        address _relayFactory,
-        address _optimizer,
-        string memory _name
-    ) ERC2771Context(_forwarder) {
+    constructor(address _voter, address _admin, address _relayFactory, address _optimizer, string memory _name) {
         voter = IVoter(_voter);
         ve = IVotingEscrow(voter.ve());
         velo = IERC20(ve.token());
@@ -112,7 +96,7 @@ abstract contract Relay is
 
     /// @inheritdoc IRelay
     function increaseAmount(uint256 _value) external onlyRole(ALLOWED_CALLER) {
-        velo.transferFrom(_msgSender(), address(this), _value);
+        velo.transferFrom(msg.sender, address(this), _value);
         _handleApproval(velo, address(ve), _value);
         ve.increaseAmount(mTokenId, _value);
     }
@@ -153,17 +137,5 @@ abstract contract Relay is
         if (distributor.claimable(_mTokenId) > 0) {
             distributor.claim(_mTokenId);
         }
-    }
-
-    // -------------------------------------------------
-    // Overrides
-    // -------------------------------------------------
-
-    function _msgData() internal view override(ERC2771Context, Context) returns (bytes calldata) {
-        return ERC2771Context._msgData();
-    }
-
-    function _msgSender() internal view override(ERC2771Context, Context) returns (address) {
-        return ERC2771Context._msgSender();
     }
 }
